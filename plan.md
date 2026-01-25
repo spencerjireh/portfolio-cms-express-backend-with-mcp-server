@@ -58,7 +58,9 @@ src/
 
 ---
 
-## Phase 2: Database Layer and Repository Pattern
+## Phase 2: Database Layer and Repository Pattern [DONE]
+
+**Status**: Completed
 
 **Goal**: Establish database connectivity with Turso/Drizzle and implement the repository pattern.
 
