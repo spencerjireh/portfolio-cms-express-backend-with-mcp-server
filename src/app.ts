@@ -7,6 +7,8 @@ import { corsMiddleware } from './middleware/cors'
 import { httpLogger } from './lib/logger'
 import { errorHandler } from './middleware/error-handler'
 import { NotFoundError } from './errors/app-error'
+import { healthRouter } from './routes/health'
+import { contentRouter } from './routes/v1/content'
 
 export function createApp() {
   const app = express()
@@ -19,14 +21,17 @@ export function createApp() {
   app.use(express.json({ limit: '100kb' }))
   app.use(httpLogger)
 
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() })
-  })
-
   app.get('/', (_req, res) => {
     res.json({ status: 'ok' })
   })
 
+  // Health check routes
+  app.use('/api/health', healthRouter)
+
+  // Public API routes
+  app.use('/api/v1/content', contentRouter)
+
+  // 404 handler
   app.use((_req, _res, next) => {
     next(new NotFoundError('Route'))
   })
