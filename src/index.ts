@@ -6,8 +6,14 @@ import { db, client } from './db/client'
 import { createCache, closeCache } from './cache'
 import { registerCacheHandlers } from './events/handlers/cache-handler'
 import { registerAuditHandlers } from './events/handlers/audit-handler'
+import { registerMetricsHandlers } from './events/handlers/metrics-handler'
+import { initializeMetrics, initializeTracing } from './observability'
 
 async function start() {
+  // Initialize metrics and tracing
+  initializeMetrics()
+  await initializeTracing()
+
   // Verify database connection
   try {
     await db.run(sql`SELECT 1`)
@@ -23,6 +29,7 @@ async function start() {
   // Register event handlers
   registerCacheHandlers()
   registerAuditHandlers()
+  registerMetricsHandlers()
 
   const app = createApp()
 

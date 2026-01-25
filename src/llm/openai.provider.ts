@@ -1,5 +1,6 @@
 import { env } from '@/config/env'
 import { LLMError } from '@/errors/app-error'
+import { llmRequestsTotal, llmRequestDuration } from '@/observability/metrics'
 import type { LLMProvider, LLMMessage, LLMOptions, LLMResponse } from './types'
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
@@ -69,6 +70,7 @@ export class OpenAIProvider implements LLMProvider {
     const model = options?.model ?? this.defaultModel
     const maxTokens = options?.maxTokens ?? this.defaultMaxTokens
     const temperature = options?.temperature ?? this.defaultTemperature
+    const start = process.hrtime.bigint()
 
     const requestBody: OpenAIRequest = {
       model,
@@ -92,6 +94,9 @@ export class OpenAIProvider implements LLMProvider {
         body: JSON.stringify(requestBody),
       })
     } catch (error) {
+      const duration = Number(process.hrtime.bigint() - start) / 1e9
+      llmRequestsTotal.inc({ model, status: 'error' })
+      llmRequestDuration.observe({ model }, duration)
       throw new LLMError(`Network error: ${(error as Error).message}`, 'openai')
     }
 
@@ -107,17 +112,27 @@ export class OpenAIProvider implements LLMProvider {
         // Use HTTP status as error message
       }
 
+      const duration = Number(process.hrtime.bigint() - start) / 1e9
+      llmRequestsTotal.inc({ model, status: 'error' })
+      llmRequestDuration.observe({ model }, duration)
       throw new LLMError(errorMessage, 'openai')
     }
 
     const data = (await response.json()) as OpenAIResponse
 
     if (!data.choices || data.choices.length === 0) {
+      const duration = Number(process.hrtime.bigint() - start) / 1e9
+      llmRequestsTotal.inc({ model, status: 'error' })
+      llmRequestDuration.observe({ model }, duration)
       throw new LLMError('No response from model', 'openai')
     }
 
     const choice = data.choices[0]
     const content = choice.message?.content ?? ''
+
+    const duration = Number(process.hrtime.bigint() - start) / 1e9
+    llmRequestsTotal.inc({ model, status: 'success' })
+    llmRequestDuration.observe({ model }, duration)
 
     return {
       content,

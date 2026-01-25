@@ -8,10 +8,12 @@ import { httpLogger } from './lib/logger'
 import { errorHandler } from './middleware/error-handler'
 import { NotFoundError } from './errors/app-error'
 import { healthRouter } from './routes/health'
+import { metricsRouter } from './routes/metrics'
 import { contentRouter } from './routes/v1/content'
 import { chatRouter } from './routes/v1/chat'
 import { adminContentRouter } from './routes/v1/admin/content'
 import { adminChatRouter } from './routes/v1/admin/chat'
+import { metricsMiddleware } from './observability'
 
 export function createApp() {
   const app = express()
@@ -23,6 +25,7 @@ export function createApp() {
   app.use(compression())
   app.use(express.json({ limit: '100kb' }))
   app.use(httpLogger)
+  app.use(metricsMiddleware())
 
   app.get('/', (_req, res) => {
     res.json({ status: 'ok' })
@@ -30,6 +33,9 @@ export function createApp() {
 
   // Health check routes
   app.use('/api/health', healthRouter)
+
+  // Metrics endpoint
+  app.use('/api/metrics', metricsRouter)
 
   // Public API routes
   app.use('/api/v1/content', contentRouter)

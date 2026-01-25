@@ -217,7 +217,9 @@ src/
 
 ---
 
-## Phase 6: AI Chat System with Rate Limiting and PII Obfuscation
+## Phase 6: AI Chat System with Rate Limiting and PII Obfuscation [DONE]
+
+**Status**: Completed
 
 **Goal**: Implement chat service with LLM integration, rate limiting, PII protection, and circuit breaker.
 
@@ -252,7 +254,9 @@ src/
 
 ---
 
-## Phase 7: Observability - Metrics and Tracing
+## Phase 7: Observability - Metrics and Tracing [DONE]
+
+**Status**: Completed
 
 **Goal**: Add Prometheus metrics endpoint and OpenTelemetry tracing.
 
