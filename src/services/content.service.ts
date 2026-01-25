@@ -16,6 +16,7 @@ import {
   parseZodErrors,
 } from '@/validation/content.schemas'
 import type { ContentType, ContentWithData, ContentBundle, ContentHistory } from '@/db/types'
+import { eventEmitter } from '@/events'
 
 interface ContentListOptions {
   type?: ContentType
@@ -241,6 +242,14 @@ class ContentService {
       changedBy
     )
 
+    eventEmitter.emit('content:created', {
+      id: data.id,
+      type: data.type,
+      slug: data.slug,
+      version: data.version,
+      changedBy,
+    })
+
     return { data }
   }
 
@@ -277,6 +286,7 @@ class ContentService {
       }
     }
 
+    const previousVersion = existing.version
     const data = await contentRepository.updateWithHistory(
       id,
       {
@@ -292,6 +302,22 @@ class ContentService {
       throw new NotFoundError('Content', id)
     }
 
+    // Determine which fields changed
+    const changedFields: string[] = []
+    if (dto.slug !== undefined && dto.slug !== existing.slug) changedFields.push('slug')
+    if (dto.data !== undefined) changedFields.push('data')
+    if (dto.status !== undefined && dto.status !== existing.status) changedFields.push('status')
+    if (dto.sortOrder !== undefined && dto.sortOrder !== existing.sortOrder) changedFields.push('sortOrder')
+
+    eventEmitter.emit('content:updated', {
+      id: data.id,
+      type: data.type,
+      version: data.version,
+      previousVersion,
+      changedFields,
+      changedBy,
+    })
+
     return { data }
   }
 
@@ -303,11 +329,25 @@ class ContentService {
     hard: boolean,
     changedBy: string
   ): Promise<{ success: boolean }> {
+    // Get content type before deletion for event emission
+    const existing = await contentRepository.findByIdIncludingDeleted(id)
+    if (!existing) {
+      throw new NotFoundError('Content', id)
+    }
+
     if (hard) {
       const success = await contentRepository.hardDelete(id)
       if (!success) {
         throw new NotFoundError('Content', id)
       }
+
+      eventEmitter.emit('content:deleted', {
+        id,
+        type: existing.type,
+        hard: true,
+        changedBy,
+      })
+
       return { success: true }
     }
 
@@ -315,6 +355,14 @@ class ContentService {
     if (!success) {
       throw new NotFoundError('Content', id)
     }
+
+    eventEmitter.emit('content:deleted', {
+      id,
+      type: existing.type,
+      hard: false,
+      changedBy,
+    })
+
     return { success: true }
   }
 
@@ -354,6 +402,14 @@ class ContentService {
       }
       throw new NotFoundError('Version', `${id}@${version}`)
     }
+
+    eventEmitter.emit('content:restored', {
+      id: data.id,
+      type: data.type,
+      fromVersion: version,
+      toVersion: data.version,
+      changedBy,
+    })
 
     return { data }
   }

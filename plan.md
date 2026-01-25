@@ -178,7 +178,9 @@ src/
 
 ---
 
-## Phase 5: Caching Infrastructure and Event System
+## Phase 5: Caching Infrastructure and Event System [DONE]
+
+**Status**: Completed
 
 **Goal**: Implement caching layer with Redis/memory fallback and typed event system.
 
@@ -186,20 +188,24 @@ src/
 
 1. **Cache Provider Interface** - get, set, del, incr, token bucket ops
 2. **Memory Cache Implementation** - In-memory LRU with TTL
-3. **Redis Cache Implementation** - ioredis with health monitoring
+3. **Redis Cache Implementation** - ioredis with TLS support for cloud providers
 4. **Cache Factory** - Redis with memory fallback
 5. **Event System**
    - TypedEventEmitter with EventMap
-   - Events: content:created/updated/deleted, chat:message_sent, circuit:state_changed
+   - Events: content:created/updated/deleted/restored, chat events, circuit events, cache events, admin events
 6. **Event Handlers** - Cache invalidation, audit logging
+7. **Idempotency Migration** - Migrated from in-memory Map to cache provider
 
 ### Key Files
 
 ```
 src/
-  cache/cache.interface.ts, memory-cache.ts, redis-cache.ts, cache-factory.ts
-  events/event-map.ts, event-emitter.ts
+  cache/cache.interface.ts, memory-cache.ts, redis-cache.ts, cache-factory.ts, index.ts
+  events/event-map.ts, event-emitter.ts, index.ts
   events/handlers/cache-handler.ts, audit-handler.ts
+  middleware/idempotency.ts (updated)
+  services/content.service.ts (updated)
+  index.ts (updated)
 ```
 
 ### Definition of Done
