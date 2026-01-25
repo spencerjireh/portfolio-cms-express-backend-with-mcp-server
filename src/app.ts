@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/error-handler'
 import { NotFoundError } from './errors/app-error'
 import { healthRouter } from './routes/health'
 import { contentRouter } from './routes/v1/content'
+import { adminContentRouter } from './routes/v1/admin/content'
 
 export function createApp() {
   const app = express()
@@ -30,6 +31,9 @@ export function createApp() {
 
   // Public API routes
   app.use('/api/v1/content', contentRouter)
+
+  // Admin API routes
+  app.use('/api/v1/admin/content', adminContentRouter)
 
   // 404 handler
   app.use((_req, _res, next) => {

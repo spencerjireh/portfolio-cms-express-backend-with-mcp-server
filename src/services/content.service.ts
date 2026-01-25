@@ -1,12 +1,21 @@
 import { contentRepository } from '@/repositories'
-import { NotFoundError, ValidationError } from '@/errors/app-error'
+import { NotFoundError, ValidationError, ConflictError } from '@/errors/app-error'
 import { generateETag } from '@/lib/etag'
+import { slugify, generateUniqueSlug } from '@/lib/slugify'
 import {
   ContentListQuerySchema,
   ContentTypeSlugParamsSchema,
+  AdminContentListQuerySchema,
+  CreateContentRequestSchema,
+  UpdateContentRequestSchema,
+  ContentIdParamSchema,
+  HistoryQuerySchema,
+  RestoreVersionRequestSchema,
+  DeleteQuerySchema,
+  validateContentData,
   parseZodErrors,
 } from '@/validation/content.schemas'
-import type { ContentType, ContentWithData, ContentBundle } from '@/db/types'
+import type { ContentType, ContentWithData, ContentBundle, ContentHistory } from '@/db/types'
 
 interface ContentListOptions {
   type?: ContentType
@@ -75,6 +84,278 @@ class ContentService {
       throw new ValidationError('Invalid parameters', parseZodErrors(result.error))
     }
     return result.data
+  }
+
+  // ============================================
+  // Admin Methods
+  // ============================================
+
+  /**
+   * Validate admin content list query parameters.
+   */
+  validateAdminListQuery(query: unknown) {
+    const result = AdminContentListQuerySchema.safeParse(query)
+    if (!result.success) {
+      throw new ValidationError('Invalid query parameters', parseZodErrors(result.error))
+    }
+    return result.data
+  }
+
+  /**
+   * Validate content ID parameter.
+   */
+  validateContentIdParam(params: unknown): { id: string } {
+    const result = ContentIdParamSchema.safeParse(params)
+    if (!result.success) {
+      throw new ValidationError('Invalid content ID', parseZodErrors(result.error))
+    }
+    return result.data
+  }
+
+  /**
+   * Validate create content request.
+   */
+  validateCreateRequest(body: unknown) {
+    const result = CreateContentRequestSchema.safeParse(body)
+    if (!result.success) {
+      throw new ValidationError('Invalid request body', parseZodErrors(result.error))
+    }
+    return result.data
+  }
+
+  /**
+   * Validate update content request.
+   */
+  validateUpdateRequest(body: unknown) {
+    const result = UpdateContentRequestSchema.safeParse(body)
+    if (!result.success) {
+      throw new ValidationError('Invalid request body', parseZodErrors(result.error))
+    }
+    return result.data
+  }
+
+  /**
+   * Validate history query parameters.
+   */
+  validateHistoryQuery(query: unknown) {
+    const result = HistoryQuerySchema.safeParse(query)
+    if (!result.success) {
+      throw new ValidationError('Invalid query parameters', parseZodErrors(result.error))
+    }
+    return result.data
+  }
+
+  /**
+   * Validate restore version request.
+   */
+  validateRestoreRequest(body: unknown) {
+    const result = RestoreVersionRequestSchema.safeParse(body)
+    if (!result.success) {
+      throw new ValidationError('Invalid request body', parseZodErrors(result.error))
+    }
+    return result.data
+  }
+
+  /**
+   * Validate delete query parameters.
+   */
+  validateDeleteQuery(query: unknown) {
+    const result = DeleteQuerySchema.safeParse(query)
+    if (!result.success) {
+      throw new ValidationError('Invalid query parameters', parseZodErrors(result.error))
+    }
+    return result.data
+  }
+
+  /**
+   * Get all content (admin view), including drafts and optionally deleted.
+   */
+  async getAllContent(options: {
+    type?: ContentType
+    status?: 'draft' | 'published' | 'archived'
+    includeDeleted?: boolean
+    limit?: number
+    offset?: number
+  }): Promise<{ data: ContentWithData[] }> {
+    const data = await contentRepository.findAll(options)
+    return { data }
+  }
+
+  /**
+   * Get a single content item by ID (admin view).
+   * Returns content regardless of status.
+   */
+  async getContentById(id: string): Promise<{ data: ContentWithData }> {
+    const content = await contentRepository.findByIdIncludingDeleted(id)
+    if (!content) {
+      throw new NotFoundError('Content', id)
+    }
+    return { data: content }
+  }
+
+  /**
+   * Create new content.
+   */
+  async createContent(
+    dto: {
+      type: ContentType
+      slug?: string
+      data: Record<string, unknown>
+      status?: 'draft' | 'published' | 'archived'
+      sortOrder?: number
+    },
+    changedBy: string
+  ): Promise<{ data: ContentWithData }> {
+    // Validate data against type-specific schema
+    const validatedData = validateContentData(dto.type, dto.data)
+
+    // Generate slug if not provided
+    let slug = dto.slug
+    if (!slug) {
+      const title = (dto.data as { title?: string }).title
+      if (!title) {
+        throw new ValidationError('Slug is required when data.title is not provided', {
+          slug: ['Required'],
+        })
+      }
+      const baseSlug = slugify(title)
+      slug = await generateUniqueSlug(baseSlug, async (testSlug) => {
+        return contentRepository.slugExists(dto.type, testSlug)
+      })
+    } else {
+      // Check if slug already exists
+      const exists = await contentRepository.slugExists(dto.type, slug)
+      if (exists) {
+        throw new ConflictError(`Slug '${slug}' already exists for type '${dto.type}'`, 'slug')
+      }
+    }
+
+    const data = await contentRepository.create(
+      {
+        type: dto.type,
+        slug,
+        data: validatedData,
+        status: dto.status ?? 'draft',
+        sortOrder: dto.sortOrder ?? 0,
+      },
+      changedBy
+    )
+
+    return { data }
+  }
+
+  /**
+   * Update existing content.
+   */
+  async updateContent(
+    id: string,
+    dto: {
+      slug?: string
+      data?: Record<string, unknown>
+      status?: 'draft' | 'published' | 'archived'
+      sortOrder?: number
+    },
+    changedBy: string
+  ): Promise<{ data: ContentWithData }> {
+    // Check if content exists
+    const existing = await contentRepository.findById(id)
+    if (!existing) {
+      throw new NotFoundError('Content', id)
+    }
+
+    // Validate data if provided
+    let validatedData = dto.data
+    if (dto.data) {
+      validatedData = validateContentData(existing.type, dto.data)
+    }
+
+    // Check slug uniqueness if changing
+    if (dto.slug && dto.slug !== existing.slug) {
+      const slugExists = await contentRepository.slugExists(existing.type, dto.slug, id)
+      if (slugExists) {
+        throw new ConflictError(`Slug '${dto.slug}' already exists for type '${existing.type}'`, 'slug')
+      }
+    }
+
+    const data = await contentRepository.updateWithHistory(
+      id,
+      {
+        slug: dto.slug,
+        data: validatedData,
+        status: dto.status,
+        sortOrder: dto.sortOrder,
+      },
+      changedBy
+    )
+
+    if (!data) {
+      throw new NotFoundError('Content', id)
+    }
+
+    return { data }
+  }
+
+  /**
+   * Delete content (soft or hard delete).
+   */
+  async deleteContent(
+    id: string,
+    hard: boolean,
+    changedBy: string
+  ): Promise<{ success: boolean }> {
+    if (hard) {
+      const success = await contentRepository.hardDelete(id)
+      if (!success) {
+        throw new NotFoundError('Content', id)
+      }
+      return { success: true }
+    }
+
+    const success = await contentRepository.delete(id, changedBy)
+    if (!success) {
+      throw new NotFoundError('Content', id)
+    }
+    return { success: true }
+  }
+
+  /**
+   * Get content version history.
+   */
+  async getContentHistory(
+    id: string,
+    limit: number,
+    offset: number
+  ): Promise<{ data: ContentHistory[] }> {
+    // Check if content exists (including deleted)
+    const content = await contentRepository.findByIdIncludingDeleted(id)
+    if (!content) {
+      throw new NotFoundError('Content', id)
+    }
+
+    const data = await contentRepository.getHistory(id, limit, offset)
+    return { data }
+  }
+
+  /**
+   * Restore content to a previous version.
+   */
+  async restoreContentVersion(
+    id: string,
+    version: number,
+    changedBy: string
+  ): Promise<{ data: ContentWithData }> {
+    const data = await contentRepository.restoreVersion(id, version, changedBy)
+
+    if (!data) {
+      // Determine if content or version doesn't exist
+      const content = await contentRepository.findById(id)
+      if (!content) {
+        throw new NotFoundError('Content', id)
+      }
+      throw new NotFoundError('Version', `${id}@${version}`)
+    }
+
+    return { data }
   }
 }
 

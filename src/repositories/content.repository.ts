@@ -42,6 +42,24 @@ export class ContentRepository {
     return parseContentData(result[0])
   }
 
+  async slugExists(type: ContentType, slug: string, excludeId?: string): Promise<boolean> {
+    const conditions = [eq(content.type, type), eq(content.slug, slug)]
+
+    // Include soft-deleted content in uniqueness check
+    const result = await db
+      .select({ id: content.id })
+      .from(content)
+      .where(and(...conditions))
+      .limit(1)
+
+    if (result.length === 0) return false
+
+    // If excludeId is provided, check if it's the same content
+    if (excludeId && result[0].id === excludeId) return false
+
+    return true
+  }
+
   async findByType(type: ContentType): Promise<ContentWithData[]> {
     const results = await db
       .select()
@@ -50,6 +68,46 @@ export class ContentRepository {
       .orderBy(asc(content.sortOrder), desc(content.createdAt))
 
     return results.map(parseContentData)
+  }
+
+  async findAll(options?: {
+    type?: ContentType
+    status?: 'draft' | 'published' | 'archived'
+    includeDeleted?: boolean
+    limit?: number
+    offset?: number
+  }): Promise<ContentWithData[]> {
+    const conditions: ReturnType<typeof eq>[] = []
+
+    if (options?.type) {
+      conditions.push(eq(content.type, options.type))
+    }
+
+    if (options?.status) {
+      conditions.push(eq(content.status, options.status))
+    }
+
+    if (!options?.includeDeleted) {
+      conditions.push(isNull(content.deletedAt))
+    }
+
+    const query = db
+      .select()
+      .from(content)
+      .orderBy(asc(content.sortOrder), desc(content.createdAt))
+      .limit(options?.limit ?? 50)
+      .offset(options?.offset ?? 0)
+
+    const results = conditions.length > 0 ? await query.where(and(...conditions)) : await query
+
+    return results.map(parseContentData)
+  }
+
+  async findByIdIncludingDeleted(id: string): Promise<ContentWithData | null> {
+    const result = await db.select().from(content).where(eq(content.id, id)).limit(1)
+
+    if (result.length === 0) return null
+    return parseContentData(result[0])
   }
 
   async findPublished(type?: ContentType): Promise<ContentWithData[]> {
@@ -174,6 +232,17 @@ export class ContentRepository {
       db.insert(contentHistory).values(historyEntry),
       db.update(content).set({ deletedAt: now, updatedAt: now }).where(eq(content.id, id)),
     ])
+
+    return true
+  }
+
+  async hardDelete(id: string): Promise<boolean> {
+    // Check if content exists (including soft-deleted)
+    const existing = await this.findByIdIncludingDeleted(id)
+    if (!existing) return false
+
+    // Delete the content (FK cascade handles history)
+    await db.delete(content).where(eq(content.id, id))
 
     return true
   }

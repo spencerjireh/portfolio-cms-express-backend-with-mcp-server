@@ -136,19 +136,26 @@ src/
 
 ---
 
-## Phase 4: Admin Authentication and Content Management API
+## Phase 4: Admin Authentication and Content Management API [DONE]
+
+**Status**: Completed
 
 **Goal**: Implement admin authentication and full CRUD operations.
 
 ### Components to Implement
 
-1. **Admin Authentication Middleware** - X-Admin-Key validation
-2. **Idempotency Middleware** - Duplicate request prevention
-3. **Admin Content Routes**
-   - `GET/POST /api/v1/admin/content` - list all, create
-   - `PUT/DELETE /api/v1/admin/content/:id` - update, delete
+1. **Admin Authentication Middleware** - X-Admin-Key validation with timing-safe comparison
+2. **Idempotency Middleware** - Duplicate request prevention with in-memory cache (24h TTL)
+3. **Slug Generation** - Auto-generate from title with uniqueness handling
+4. **Admin Validation Schemas** - Zod schemas for all admin operations
+5. **Admin Content Routes**
+   - `GET /api/v1/admin/content` - list all (with filtering)
+   - `POST /api/v1/admin/content` - create (with idempotency)
+   - `GET /api/v1/admin/content/:id` - get by ID
+   - `PUT /api/v1/admin/content/:id` - update (with idempotency)
+   - `DELETE /api/v1/admin/content/:id` - soft/hard delete
    - `GET /api/v1/admin/content/:id/history` - version history
-   - `POST /api/v1/admin/content/:id/restore` - restore version
+   - `POST /api/v1/admin/content/:id/restore` - restore version (with idempotency)
 
 ### Key Files
 
@@ -156,7 +163,10 @@ src/
 src/
   middleware/admin-auth.ts, idempotency.ts
   routes/v1/admin/content.ts
-  lib/slugify.ts, hash.ts
+  lib/slugify.ts
+  validation/content.schemas.ts (updated)
+  services/content.service.ts (updated)
+  repositories/content.repository.ts (updated)
 ```
 
 ### Definition of Done

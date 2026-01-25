@@ -7,8 +7,8 @@ export function corsMiddleware() {
   return cors({
     origin: origins.length > 0 ? origins : false,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-Admin-Key'],
-    exposedHeaders: ['X-Request-Id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-Admin-Key', 'Idempotency-Key'],
+    exposedHeaders: ['X-Request-Id', 'X-Idempotent-Replayed'],
     credentials: true,
     maxAge: 86400,
   })

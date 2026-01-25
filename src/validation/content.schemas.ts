@@ -104,10 +104,51 @@ export const SiteConfigDataSchema = z.object({
   chatSystemPrompt: z.string().max(2000).optional(),
 })
 
-// Query schema for listing content
+// Query schema for listing content (public)
 export const ContentListQuerySchema = z.object({
   type: ContentTypeSchema.optional(),
   status: ContentStatusSchema.optional().default('published'),
+})
+
+// Admin-specific schemas
+export const AdminContentListQuerySchema = z.object({
+  type: ContentTypeSchema.optional(),
+  status: ContentStatusSchema.optional(),
+  includeDeleted: z.coerce.boolean().default(false),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+})
+
+export const CreateContentRequestSchema = z.object({
+  type: ContentTypeSchema,
+  slug: SlugSchema.optional(), // auto-generated from data.title if not provided
+  data: z.record(z.unknown()),
+  status: ContentStatusSchema.default('draft'),
+  sortOrder: z.number().int().default(0),
+})
+
+export const UpdateContentRequestSchema = z.object({
+  slug: SlugSchema.optional(),
+  data: z.record(z.unknown()).optional(),
+  status: ContentStatusSchema.optional(),
+  sortOrder: z.number().int().optional(),
+})
+
+export const RestoreVersionRequestSchema = z.object({
+  version: z.number().int().min(1),
+})
+
+export const HistoryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+})
+
+export const DeleteQuerySchema = z.object({
+  hard: z.coerce.boolean().default(false),
+})
+
+export const ContentIdParamSchema = z.object({
+  id: z.string().startsWith('content_'),
 })
 
 // Route params schema for type and slug
@@ -125,6 +166,44 @@ export type EducationListData = z.infer<typeof EducationListDataSchema>
 export type SiteConfigData = z.infer<typeof SiteConfigDataSchema>
 export type ContentListQuery = z.infer<typeof ContentListQuerySchema>
 export type ContentTypeSlugParams = z.infer<typeof ContentTypeSlugParamsSchema>
+export type AdminContentListQuery = z.infer<typeof AdminContentListQuerySchema>
+export type CreateContentRequest = z.infer<typeof CreateContentRequestSchema>
+export type UpdateContentRequest = z.infer<typeof UpdateContentRequestSchema>
+export type RestoreVersionRequest = z.infer<typeof RestoreVersionRequestSchema>
+export type HistoryQuery = z.infer<typeof HistoryQuerySchema>
+export type DeleteQuery = z.infer<typeof DeleteQuerySchema>
+export type ContentIdParam = z.infer<typeof ContentIdParamSchema>
+
+// Map content types to their data schemas
+const contentDataSchemas: Record<string, z.ZodSchema> = {
+  project: ProjectDataSchema,
+  experience: ExperienceListDataSchema,
+  education: EducationListDataSchema,
+  skill: SkillsListDataSchema,
+  about: PageDataSchema,
+  contact: SiteConfigDataSchema,
+}
+
+/**
+ * Validates data against the schema for a specific content type.
+ * Throws ValidationError if data does not match the expected schema.
+ */
+export function validateContentData(
+  type: (typeof contentTypeEnum)[number],
+  data: Record<string, unknown>
+): Record<string, unknown> {
+  const schema = contentDataSchemas[type]
+  if (!schema) {
+    throw new Error(`No schema defined for content type: ${type}`)
+  }
+
+  const result = schema.safeParse(data)
+  if (!result.success) {
+    return { valid: false, errors: parseZodErrors(result.error) }
+  }
+
+  return result.data as Record<string, unknown>
+}
 
 /**
  * Transform Zod errors into a field-level error map.
