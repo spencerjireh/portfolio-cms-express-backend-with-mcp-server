@@ -11,10 +11,17 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "mcp": "bun src/mcp/server.ts",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest tests/unit",
+    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest tests/integration"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.69.0",
     "@opentelemetry/resources": "^2.5.0",
@@ -38,11 +45,17 @@
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.14",
+    "@types/supertest": "^6.0.2",
     "bun-types": "^1.1.30",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.11.1",
+    "jest": "^29.7.0",
     "pino-pretty": "^11.2.2",
     "prettier": "^3.3.3",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
     "typescript-eslint": "^8.53.1"
   }
 }

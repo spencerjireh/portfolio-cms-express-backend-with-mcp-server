@@ -7,6 +7,7 @@ The portfolio backend exposes a **Model Context Protocol (MCP)** server, enablin
 - Query portfolio projects and content
 - Understand the portfolio owner's skills and experience
 - Answer questions about the portfolio with accurate, up-to-date information
+- Create, update, and delete content (with proper authentication)
 
 ## What is MCP?
 
@@ -29,17 +30,23 @@ The MCP server runs as a separate process or can be embedded in the main Express
 │                                                                  │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
 │  │   Tools     │  │  Resources  │  │      Prompts            │ │
+│  │  (Generic)  │  │  (Generic)  │  │   (Specialized)         │ │
 │  │             │  │             │  │                         │ │
-│  │ search_     │  │ portfolio:// │ │ summarize_portfolio    │ │
-│  │   projects  │  │   projects  │  │ explain_project        │ │
-│  │ get_project │  │   skills    │  │ compare_skills         │ │
-│  │ list_skills │  │   experience│  │                         │ │
-│  │ get_contact │  │   about     │  │                         │ │
+│  │ list_content│  │ portfolio://│  │ summarize_portfolio    │ │
+│  │ get_content │  │   content   │  │ explain_project        │ │
+│  │ search_     │  │   content/  │  │ compare_skills         │ │
+│  │   content   │  │    {type}   │  │                         │ │
+│  │ create_     │  │   content/  │  │                         │ │
+│  │   content   │  │  {type}/    │  │                         │ │
+│  │ update_     │  │   {slug}    │  │                         │ │
+│  │   content   │  │             │  │                         │ │
+│  │ delete_     │  │             │  │                         │ │
+│  │   content   │  │             │  │                         │ │
 │  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
 │                            │                                     │
 │                            ▼                                     │
 │                 ┌─────────────────────┐                         │
-│                 │   Content Service   │                         │
+│                 │ Content Repository  │                         │
 │                 │   (shared with API) │                         │
 │                 └─────────────────────┘                         │
 │                            │                                     │
@@ -50,115 +57,212 @@ The MCP server runs as a separate process or can be embedded in the main Express
                     └─────────────────┘
 ```
 
+## Content Types
+
+All tools and resources operate on the unified content model with these types:
+
+| Type | Description |
+|------|-------------|
+| `project` | Portfolio projects with title, description, tags, links |
+| `experience` | Work experience history |
+| `education` | Educational background |
+| `skill` | Skills grouped by category |
+| `about` | About page content |
+| `contact` | Contact information and social links |
+
 ## Tools
 
-Tools are functions that AI can call to perform actions or retrieve specific data.
+Tools are functions that AI can call to perform actions or retrieve specific data. The MCP server provides 6 generic tools that work with any content type.
 
-### `search_projects`
+### `list_content`
 
-Search portfolio projects by keyword, tag, or technology.
+List content items by type with optional status filter.
 
 ```typescript
-interface SearchProjectsInput {
-  query?: string        // Full-text search in title/description
-  tags?: string[]       // Filter by tags
-  featured?: boolean    // Only featured projects
-  limit?: number        // Max results (default: 10)
+interface ListContentInput {
+  type: 'project' | 'experience' | 'education' | 'skill' | 'about' | 'contact'
+  status?: 'draft' | 'published' | 'archived'  // default: 'published'
+  limit?: number                                // default: 50, max: 100
 }
 
-interface SearchProjectsOutput {
-  projects: Array<{
+interface ListContentOutput {
+  items: Array<{
+    id: string
     slug: string
-    title: string
-    description: string
-    tags: string[]
-    featured: boolean
+    type: string
+    data: Record<string, unknown>
+    status: string
+    version: number
+    sortOrder: number
+    createdAt: string
+    updatedAt: string
   }>
-  total: number
+}
+```
+
+**Example invocation:**
+```
+User: "Show me all published projects"
+AI calls: list_content({ type: "project", status: "published" })
+```
+
+### `get_content`
+
+Get a single content item by type and slug.
+
+```typescript
+interface GetContentInput {
+  type: 'project' | 'experience' | 'education' | 'skill' | 'about' | 'contact'
+  slug: string
+}
+
+interface GetContentOutput {
+  id: string
+  slug: string
+  type: string
+  data: Record<string, unknown>
+  status: string
+  version: number
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+```
+
+**Example invocation:**
+```
+User: "Tell me about the portfolio-backend project"
+AI calls: get_content({ type: "project", slug: "portfolio-backend" })
+```
+
+### `search_content`
+
+Search content by query across title, description, name, and other text fields.
+
+```typescript
+interface SearchContentInput {
+  query: string                                  // Search query
+  type?: 'project' | 'experience' | 'education' | 'skill' | 'about' | 'contact'
+  limit?: number                                 // default: 10, max: 50
+}
+
+interface SearchContentOutput {
+  items: Array<{
+    id: string
+    slug: string
+    type: string
+    data: Record<string, unknown>
+    status: string
+  }>
 }
 ```
 
 **Example invocation:**
 ```
 User: "What projects use TypeScript?"
-AI calls: search_projects({ tags: ["typescript"] })
+AI calls: search_content({ query: "typescript", type: "project" })
 ```
 
-### `get_project`
+### `create_content`
 
-Get detailed information about a specific project.
+Create new content with type-specific data validation.
 
 ```typescript
-interface GetProjectInput {
-  slug: string          // Project identifier
+interface CreateContentInput {
+  type: 'project' | 'experience' | 'education' | 'skill' | 'about' | 'contact'
+  slug?: string                                  // Auto-generated from title/name if not provided
+  data: Record<string, unknown>                  // Must match type-specific schema
+  status?: 'draft' | 'published' | 'archived'   // default: 'draft'
+  sortOrder?: number                             // default: 0
 }
 
-interface GetProjectOutput {
-  slug: string
-  title: string
-  description: string
-  content: string       // Full markdown content
-  tags: string[]
-  links: {
-    github?: string
-    live?: string
-    demo?: string
+interface CreateContentOutput {
+  success: boolean
+  content: {
+    id: string
+    slug: string
+    type: string
+    data: Record<string, unknown>
+    status: string
+    version: number
+    sortOrder: number
+    createdAt: string
+    updatedAt: string
   }
-  featured: boolean
 }
 ```
 
-### `list_skills`
+**Example invocation:**
+```
+User: "Create a new project called 'My New App'"
+AI calls: create_content({
+  type: "project",
+  data: {
+    title: "My New App",
+    description: "A new application",
+    tags: ["typescript", "react"]
+  }
+})
+```
 
-Get all skills grouped by category.
+### `update_content`
+
+Update existing content with version history tracking.
 
 ```typescript
-interface ListSkillsInput {
-  category?: 'language' | 'framework' | 'tool' | 'soft'
+interface UpdateContentInput {
+  id: string                                     // Content ID to update
+  slug?: string                                  // New slug
+  data?: Record<string, unknown>                 // Updated data (validated against type schema)
+  status?: 'draft' | 'published' | 'archived'
+  sortOrder?: number
 }
 
-interface ListSkillsOutput {
-  skills: Array<{
-    name: string
-    category: string
-    proficiency: 1 | 2 | 3 | 4 | 5
-    icon?: string
-  }>
+interface UpdateContentOutput {
+  success: boolean
+  content: {
+    id: string
+    slug: string
+    type: string
+    data: Record<string, unknown>
+    status: string
+    version: number
+    sortOrder: number
+    createdAt: string
+    updatedAt: string
+  }
 }
 ```
 
-### `get_experience`
+**Example invocation:**
+```
+User: "Update the project description"
+AI calls: update_content({
+  id: "content_abc123",
+  data: { ...existingData, description: "Updated description" }
+})
+```
 
-Get work experience history.
+### `delete_content`
+
+Soft delete content (can be restored later).
 
 ```typescript
-interface GetExperienceInput {
-  current_only?: boolean    // Only current positions
+interface DeleteContentInput {
+  id: string                                     // Content ID to delete
 }
 
-interface GetExperienceOutput {
-  positions: Array<{
-    company: string
-    role: string
-    description: string
-    startDate: string
-    endDate: string | null  // null = current
-    skills: string[]
-  }>
+interface DeleteContentOutput {
+  success: boolean
+  message: string
+  id: string
 }
 ```
 
-### `get_contact`
-
-Get contact information and social links.
-
-```typescript
-interface GetContactOutput {
-  name: string
-  title: string
-  email: string
-  social: Record<string, string>
-}
+**Example invocation:**
+```
+User: "Delete the old project"
+AI calls: delete_content({ id: "content_abc123" })
 ```
 
 ## Resources
@@ -167,22 +271,30 @@ Resources are URIs that AI can read to get content. Unlike tools, resources are 
 
 | URI | Description | Returns |
 |-----|-------------|---------|
-| `portfolio://projects` | All published projects | JSON array of projects |
-| `portfolio://projects/{slug}` | Single project | Project detail JSON |
-| `portfolio://skills` | Skills list | Grouped skills JSON |
-| `portfolio://experience` | Work history | Experience array JSON |
-| `portfolio://about` | About page content | Page content JSON |
-| `portfolio://config` | Site configuration | Config JSON |
+| `portfolio://content` | All published content | JSON array of all content items |
+| `portfolio://content/{type}` | Content by type | JSON array of content for specified type |
+| `portfolio://content/{type}/{slug}` | Single content item | Full content item JSON |
 
-**Example resource read:**
+**Supported types in URI:**
+- `portfolio://content/project`
+- `portfolio://content/experience`
+- `portfolio://content/education`
+- `portfolio://content/skill`
+- `portfolio://content/about`
+- `portfolio://content/contact`
+
+**Example resource reads:**
 ```
-AI reads: portfolio://projects/portfolio-backend
-Returns: { slug: "portfolio-backend", title: "Portfolio Backend", ... }
+AI reads: portfolio://content/project
+Returns: [{ slug: "portfolio-backend", ... }, { slug: "task-manager", ... }]
+
+AI reads: portfolio://content/project/portfolio-backend
+Returns: { id: "...", slug: "portfolio-backend", title: "Portfolio Backend", ... }
 ```
 
 ## Prompts
 
-Pre-defined prompt templates for common use cases.
+Pre-defined prompt templates for common use cases. These are specialized by design to provide optimal responses for specific scenarios.
 
 ### `summarize_portfolio`
 
@@ -191,7 +303,6 @@ Generate a summary of the entire portfolio suitable for a specific audience.
 ```typescript
 interface SummarizePortfolioInput {
   audience: 'recruiter' | 'technical' | 'general'
-  max_length?: number
 }
 ```
 
@@ -212,8 +323,8 @@ Compare the portfolio owner's skills to a job requirement.
 
 ```typescript
 interface CompareSkillsInput {
-  required_skills: string[]
-  nice_to_have?: string[]
+  requiredSkills: string[]
+  niceToHave?: string[]
 }
 ```
 
@@ -227,8 +338,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "portfolio": {
-      "command": "node",
-      "args": ["/path/to/portfolio-backend/dist/mcp/server.js"],
+      "command": "bun",
+      "args": ["run", "mcp"],
+      "cwd": "/path/to/portfolio-backend",
       "env": {
         "TURSO_DATABASE_URL": "libsql://...",
         "TURSO_AUTH_TOKEN": "..."
@@ -246,7 +358,6 @@ For web-based MCP clients, the server exposes an SSE endpoint:
 GET /mcp/sse
 Headers:
   Accept: text/event-stream
-  X-Admin-Key: <optional, for admin tools>
 ```
 
 ### Environment Variables
@@ -254,27 +365,94 @@ Headers:
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `MCP_TRANSPORT` | `stdio` or `sse` | No (default: stdio) |
-| `MCP_ADMIN_ENABLED` | Enable admin tools | No (default: false) |
 | `TURSO_DATABASE_URL` | Database connection | Yes |
 | `TURSO_AUTH_TOKEN` | Database auth | Yes |
 
-## Admin Tools (Optional)
+## Data Schemas
 
-When `MCP_ADMIN_ENABLED=true` and valid admin key is provided:
+Content data is validated against type-specific schemas:
 
-### `create_content`
+### Project Data
+```typescript
+interface ProjectData {
+  title: string
+  description: string
+  content?: string
+  tags: string[]
+  links?: {
+    github?: string
+    live?: string
+    demo?: string
+  }
+  coverImage?: string
+  featured: boolean
+}
+```
 
-Create new content items.
+### Skills List Data
+```typescript
+interface SkillsListData {
+  items: Array<{
+    name: string
+    category: 'language' | 'framework' | 'tool' | 'soft'
+    icon?: string
+    proficiency?: 1 | 2 | 3 | 4 | 5
+  }>
+}
+```
 
-### `update_content`
+### Experience List Data
+```typescript
+interface ExperienceListData {
+  items: Array<{
+    company: string
+    role: string
+    description?: string
+    startDate: string      // YYYY-MM format
+    endDate: string | null // null = current
+    location?: string
+    type?: 'full-time' | 'part-time' | 'contract' | 'freelance'
+    skills: string[]
+  }>
+}
+```
 
-Update existing content.
+### Education List Data
+```typescript
+interface EducationListData {
+  items: Array<{
+    institution: string
+    degree: string
+    field?: string
+    startDate: string      // YYYY-MM format
+    endDate: string | null
+    location?: string
+    gpa?: string
+    highlights?: string[]
+  }>
+}
+```
 
-### `publish_content`
+### Page Data (About)
+```typescript
+interface PageData {
+  title: string
+  content: string
+  image?: string
+}
+```
 
-Change content status from draft to published.
-
-**Security Note:** Admin tools require the same `X-Admin-Key` authentication as the REST API. Never expose admin tools in public MCP configurations.
+### Site Config Data (Contact)
+```typescript
+interface SiteConfigData {
+  name: string
+  title: string
+  email: string
+  social: Record<string, string>
+  chatEnabled: boolean
+  chatSystemPrompt?: string
+}
+```
 
 ## Integration with REST API
 
@@ -292,17 +470,19 @@ The MCP server shares the same data layer as the REST API:
 │           └───────────────┬───────────────┘                     │
 │                           ▼                                      │
 │                 ┌─────────────────────┐                         │
-│                 │   Content Service   │                         │
+│                 │ Content Repository  │                         │
 │                 │                     │                         │
-│                 │ - getAll()          │                         │
-│                 │ - getBySlug()       │                         │
-│                 │ - getBundle()       │                         │
-│                 │ - search()          │                         │
+│                 │ - findAll()         │                         │
+│                 │ - findBySlug()      │                         │
+│                 │ - findPublished()   │                         │
+│                 │ - create()          │                         │
+│                 │ - updateWithHistory()│                        │
+│                 │ - delete()          │                         │
 │                 └─────────────────────┘                         │
 │                           │                                      │
 │                           ▼                                      │
 │                 ┌─────────────────────┐                         │
-│                 │ Content Repository  │                         │
+│                 │     Turso DB        │                         │
 │                 └─────────────────────┘                         │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
@@ -310,8 +490,8 @@ The MCP server shares the same data layer as the REST API:
 
 This ensures:
 - Consistent data access
-- Shared caching
-- Unified event emission
+- Shared validation schemas
+- Version history tracking
 - Single source of truth
 
 ## Error Handling
@@ -333,14 +513,14 @@ interface MCPError {
 | -32602 | Invalid params |
 | -32603 | Internal error |
 | -32001 | Resource not found |
-| -32002 | Unauthorized |
+| -32002 | Validation failed |
 
 ## Example Session
 
 ```
 Human: What TypeScript projects does this portfolio have?
 
-[Claude calls search_projects({ tags: ["typescript"] })]
+[Claude calls search_content({ query: "typescript", type: "project" })]
 
 Claude: Based on the portfolio, there are 3 TypeScript projects:
 
@@ -349,10 +529,3 @@ Claude: Based on the portfolio, there are 3 TypeScript projects:
 3. **React Dashboard** - An admin dashboard using TypeScript and React Query...
 
 Would you like more details about any of these?
-```
-
-## References
-
-- [Model Context Protocol Specification](https://modelcontextprotocol.io/)
-- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
-- [Claude Desktop MCP Guide](https://docs.anthropic.com/claude/docs/mcp)
