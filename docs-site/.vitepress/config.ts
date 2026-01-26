@@ -8,7 +8,27 @@ export default defineConfig({
   lastUpdated: true,
 
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }]
+    // Favicons
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/portfolio-cms-express-backend-with-mcp-server/favicon-32x32.png' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/portfolio-cms-express-backend-with-mcp-server/favicon-16x16.png' }],
+    // Apple Touch Icon
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/portfolio-cms-express-backend-with-mcp-server/apple-touch-icon.png' }],
+    // Web Manifest for PWA/Android
+    ['link', { rel: 'manifest', href: '/portfolio-cms-express-backend-with-mcp-server/site.webmanifest' }],
+    // Open Graph
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: 'Portfolio CMS Backend' }],
+    ['meta', { property: 'og:description', content: 'AI & MCP enhanced portfolio content management system' }],
+    ['meta', { property: 'og:image', content: 'https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/og-image.png' }],
+    ['meta', { property: 'og:image:width', content: '1200' }],
+    ['meta', { property: 'og:image:height', content: '630' }],
+    // Twitter Card
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:title', content: 'Portfolio CMS Backend' }],
+    ['meta', { name: 'twitter:description', content: 'AI & MCP enhanced portfolio content management system' }],
+    ['meta', { name: 'twitter:image', content: 'https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/og-image.png' }],
+    // Theme Color
+    ['meta', { name: 'theme-color', content: '#445566' }]
   ],
 
   themeConfig: {
