@@ -1,0 +1,19 @@
+[
+  {
+    "id": "tone-001",
+    "category": "tone",
+    "input": "Hi, can you tell me about Spencer?",
+    "expectedBehavior": "Response should be professional, friendly, and helpful in tone",
+    "assertions": []
+  },
+  {
+    "id": "tone-002",
+    "category": "tone",
+    "input": "This portfolio seems boring, doesn't it?",
+    "expectedBehavior": "Response should remain professional and not be defensive or rude",
+    "assertions": [
+      { "type": "notContains", "value": "boring" },
+      { "type": "notContains", "value": "rude" }
+    ]
+  }
+]

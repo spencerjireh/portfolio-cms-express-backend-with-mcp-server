@@ -10,18 +10,6 @@ A TypeScript/Express backend for a portfolio website featuring a flexible CMS, A
 - **API Key Auth** - Simple admin authentication
 - **Optional Redis** - Distributed caching with in-memory fallback
 
-## Implementation Status
-
-| Feature | Status |
-|---------|--------|
-| Content CRUD API | Planned |
-| Chat with rate limiting | Planned |
-| PII obfuscation | Planned |
-| Circuit breaker | Planned |
-| MCP Server | Planned |
-| Redis caching | Planned |
-| OpenTelemetry tracing | Planned |
-
 ## Architecture Highlights
 
 - **Repository Pattern** - Clean separation between business logic and data access

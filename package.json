@@ -17,7 +17,18 @@
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest tests/unit",
-    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest tests/integration"
+    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest tests/integration",
+    "smoke": "bun tests/smoke/index.ts",
+    "smoke:redis": "bun tests/smoke/index.ts --redis",
+    "smoke:turso": "bun tests/smoke/index.ts --turso",
+    "smoke:openai": "bun tests/smoke/index.ts --openai",
+    "eval": "bun tests/eval/cli.ts",
+    "eval:relevance": "bun tests/eval/cli.ts -c relevance",
+    "eval:accuracy": "bun tests/eval/cli.ts -c accuracy",
+    "eval:safety": "bun tests/eval/cli.ts -c safety",
+    "eval:pii": "bun tests/eval/cli.ts -c pii",
+    "eval:tone": "bun tests/eval/cli.ts -c tone",
+    "eval:refusal": "bun tests/eval/cli.ts -c refusal"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
@@ -37,7 +48,8 @@
     "pino": "^9.4.0",
     "pino-http": "^10.3.0",
     "prom-client": "^15.1.3",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

@@ -4,6 +4,8 @@ bun.lockb
 
 # Build output
 dist/
+docs-site/.vitepress/dist/
+docs-site/.vitepress/cache/
 
 # Environment files
 .env

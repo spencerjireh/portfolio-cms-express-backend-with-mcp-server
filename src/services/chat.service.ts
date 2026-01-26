@@ -6,6 +6,7 @@ import { CircuitBreaker } from '@/resilience/circuit-breaker'
 import { getLLMProvider } from '@/llm'
 import type { LLMMessage } from '@/llm'
 import { obfuscationService, type PIIToken } from './obfuscation.service'
+import { chatToolDefinitions, executeToolCall } from '@/tools'
 import {
   SendMessageRequestSchema,
   SessionIdParamSchema,
@@ -14,10 +15,19 @@ import {
 } from '@/validation/chat.schemas'
 import type { ChatSession, ChatMessage, SessionStatus } from '@/db/types'
 
+const MAX_TOOL_ITERATIONS = 5
+
 const SYSTEM_PROMPT = `You are a helpful assistant for Spencer's portfolio website.
 You can answer questions about Spencer's projects, skills, experience, and education.
 Be concise, professional, and helpful. If you don't know something, say so.
-Do not share any personal information that wasn't explicitly provided to you.`
+Do not share any personal information that wasn't explicitly provided to you.
+
+You have access to tools that can query Spencer's portfolio data:
+- list_content: List portfolio items by type (project, experience, education, skill, about, contact)
+- get_content: Get a specific item by type and slug
+- search_content: Search content by keywords
+
+Use these tools to provide accurate, up-to-date information about Spencer's background.`
 
 export interface SendMessageInput {
   visitorId: string
@@ -134,19 +144,21 @@ class ChatService {
     // 5. Build conversation history
     const conversationHistory = await this.buildConversationHistory(session.id)
 
-    // 6. Call LLM through circuit breaker
+    // 6. Call LLM with tool loop
     const llmProvider = getLLMProvider()
-    const llmResponse = await llmCircuitBreaker.execute(() => llmProvider.sendMessage(conversationHistory))
+    const { content: finalContent, tokensUsed } = await this.executeWithToolLoop(
+      llmProvider,
+      conversationHistory
+    )
 
     // 7. Deobfuscate response (in case LLM echoed back placeholders)
-    const deobfuscatedContent = this.deobfuscateResponse(llmResponse.content, piiTokens)
+    const deobfuscatedContent = this.deobfuscateResponse(finalContent, piiTokens)
 
     // 8. Store assistant message
     const assistantMessage = await chatRepository.addMessage(session.id, {
       role: 'assistant',
       content: deobfuscatedContent,
-      tokensUsed: llmResponse.tokensUsed,
-      model: llmResponse.model,
+      tokensUsed,
     })
 
     // 9. Emit events
@@ -154,7 +166,7 @@ class ChatService {
       sessionId: session.id,
       messageId: assistantMessage.id,
       role: 'assistant',
-      tokensUsed: llmResponse.tokensUsed,
+      tokensUsed,
     })
 
     return {
@@ -165,7 +177,57 @@ class ChatService {
         content: deobfuscatedContent,
         createdAt: assistantMessage.createdAt,
       },
-      tokensUsed: llmResponse.tokensUsed,
+      tokensUsed,
+    }
+  }
+
+  /**
+   * Execute LLM call with tool loop for function calling.
+   * Continues until LLM returns a response without tool calls or max iterations reached.
+   */
+  private async executeWithToolLoop(
+    llmProvider: ReturnType<typeof getLLMProvider>,
+    history: LLMMessage[]
+  ): Promise<{ content: string; tokensUsed: number }> {
+    let iterations = 0
+    let totalTokensUsed = 0
+
+    // Initial call with tools
+    let response = await llmCircuitBreaker.execute(() =>
+      llmProvider.sendMessage(history, { tools: chatToolDefinitions })
+    )
+    totalTokensUsed += response.tokensUsed
+
+    // Tool call loop
+    while (response.tool_calls && response.tool_calls.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
+      // Add assistant message with tool_calls to history
+      history.push({
+        role: 'assistant',
+        content: response.content,
+        tool_calls: response.tool_calls,
+      })
+
+      // Execute tools and add results to history
+      for (const toolCall of response.tool_calls) {
+        const result = await executeToolCall(toolCall)
+        history.push({
+          role: 'tool',
+          content: result,
+          tool_call_id: toolCall.id,
+        })
+      }
+
+      // Continue conversation with tool results
+      response = await llmCircuitBreaker.execute(() =>
+        llmProvider.sendMessage(history, { tools: chatToolDefinitions })
+      )
+      totalTokensUsed += response.tokensUsed
+      iterations++
+    }
+
+    return {
+      content: response.content,
+      tokensUsed: totalTokensUsed,
     }
   }
 

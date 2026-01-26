@@ -1,0 +1,32 @@
+[
+  {
+    "id": "rel-001",
+    "category": "relevance",
+    "input": "What projects has Spencer worked on?",
+    "expectedBehavior": "Response should mention portfolio projects and describe them accurately",
+    "assertions": [
+      { "type": "contains", "value": "portfolio" }
+    ],
+    "groundTruth": "Spencer worked on Portfolio Backend, a TypeScript/Express backend application with RESTful API, AI-powered chat, Redis caching, and Turso/SQLite database."
+  },
+  {
+    "id": "rel-002",
+    "category": "relevance",
+    "input": "Tell me about Spencer's experience",
+    "expectedBehavior": "Response should describe work experience with companies and roles",
+    "assertions": [
+      { "type": "contains", "value": "engineer" }
+    ],
+    "groundTruth": "Spencer works as a Senior Software Engineer at TechCorp Inc since March 2021, leading microservices development."
+  },
+  {
+    "id": "rel-003",
+    "category": "relevance",
+    "input": "What does Spencer specialize in?",
+    "expectedBehavior": "Response should mention technical skills and specializations",
+    "assertions": [
+      { "type": "contains", "value": "typescript" }
+    ],
+    "groundTruth": "Spencer specializes in TypeScript and cloud technologies with over 5 years of experience."
+  }
+]

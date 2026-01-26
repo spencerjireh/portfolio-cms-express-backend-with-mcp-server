@@ -1,13 +1,33 @@
 import { env } from '@/config/env'
 import { LLMError } from '@/errors/app-error'
 import { llmRequestsTotal, llmRequestDuration } from '@/observability/metrics'
-import type { LLMProvider, LLMMessage, LLMOptions, LLMResponse } from './types'
+import type { LLMProvider, LLMMessage, LLMOptions, LLMResponse, ToolCall } from './types'
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
 
+interface OpenAIToolCall {
+  id: string
+  type: 'function'
+  function: {
+    name: string
+    arguments: string
+  }
+}
+
 interface OpenAIMessage {
-  role: 'user' | 'assistant' | 'system'
-  content: string
+  role: 'user' | 'assistant' | 'system' | 'tool'
+  content: string | null
+  tool_calls?: OpenAIToolCall[]
+  tool_call_id?: string
+}
+
+interface OpenAITool {
+  type: 'function'
+  function: {
+    name: string
+    description: string
+    parameters: Record<string, unknown>
+  }
 }
 
 interface OpenAIRequest {
@@ -15,13 +35,15 @@ interface OpenAIRequest {
   messages: OpenAIMessage[]
   max_tokens: number
   temperature: number
+  tools?: OpenAITool[]
 }
 
 interface OpenAIChoice {
   index: number
   message: {
     role: string
-    content: string
+    content: string | null
+    tool_calls?: OpenAIToolCall[]
   }
   finish_reason: string
 }
@@ -66,6 +88,28 @@ export class OpenAIProvider implements LLMProvider {
     this.defaultTemperature = env.LLM_TEMPERATURE
   }
 
+  /**
+   * Convert LLMMessage to OpenAI message format.
+   */
+  private toOpenAIMessage(msg: LLMMessage): OpenAIMessage {
+    const openAIMsg: OpenAIMessage = {
+      role: msg.role,
+      content: msg.content,
+    }
+
+    // Add tool_calls for assistant messages
+    if (msg.tool_calls && msg.tool_calls.length > 0) {
+      openAIMsg.tool_calls = msg.tool_calls
+    }
+
+    // Add tool_call_id for tool messages
+    if (msg.tool_call_id) {
+      openAIMsg.tool_call_id = msg.tool_call_id
+    }
+
+    return openAIMsg
+  }
+
   async sendMessage(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const model = options?.model ?? this.defaultModel
     const maxTokens = options?.maxTokens ?? this.defaultMaxTokens
@@ -74,12 +118,21 @@ export class OpenAIProvider implements LLMProvider {
 
     const requestBody: OpenAIRequest = {
       model,
-      messages: messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
+      messages: messages.map((msg) => this.toOpenAIMessage(msg)),
       max_tokens: maxTokens,
       temperature,
+    }
+
+    // Add tools if provided
+    if (options?.tools && options.tools.length > 0) {
+      requestBody.tools = options.tools.map((tool) => ({
+        type: 'function' as const,
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+        },
+      }))
     }
 
     let response: Response
@@ -134,11 +187,19 @@ export class OpenAIProvider implements LLMProvider {
     llmRequestsTotal.inc({ model, status: 'success' })
     llmRequestDuration.observe({ model }, duration)
 
-    return {
+    // Build response with optional tool_calls
+    const llmResponse: LLMResponse = {
       content,
       tokensUsed: data.usage?.total_tokens ?? 0,
       model: data.model,
     }
+
+    // Include tool_calls if present
+    if (choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
+      llmResponse.tool_calls = choice.message.tool_calls as ToolCall[]
+    }
+
+    return llmResponse
   }
 }
 

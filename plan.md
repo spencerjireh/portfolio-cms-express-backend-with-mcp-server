@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan outlines 9 sequential implementation phases for building the TypeScript/Express portfolio backend based on the existing architecture documentation.
+This plan outlines 10 sequential implementation phases for building the TypeScript/Express portfolio backend based on the existing architecture documentation.
 
 ---
 
@@ -366,7 +366,12 @@ Phase 4: Admin API    Phase 5: Cache & Events
       Phase 8: MCP Server
              |
              v
-      Phase 9: Test Suite
+      Phase 9: Test Suite (mocked)
+             |
+             v
+      Phase 10: External Services (real)
+                - Smoke tests (Redis, Turso, OpenAI)
+                - LLM eval pipeline
 ```
 
 ---
@@ -392,7 +397,8 @@ Phase 4: Admin API    Phase 5: Cache & Events
 |----------|-----------|-------|
 | Unit | `tests/unit/` | Jest, mocks |
 | Integration | `tests/integration/` | Supertest, in-memory SQLite |
-| E2E | `tests/e2e/` | Supertest, test containers |
+| Smoke | `tests/smoke/` | Real Redis, Turso, OpenAI |
+| LLM Eval | `tests/eval/` | Real OpenAI, programmatic + LLM-judge + embedding |
 
 ### Coverage Targets
 - Line Coverage: 80%
@@ -423,6 +429,8 @@ Final verification:
 - Full API test suite with Supertest
 - Load test for rate limiting verification
 - MCP server test with Claude Desktop (if available)
+- Smoke tests pass (Redis, Turso, OpenAI connectivity)
+- LLM eval pipeline with real OpenAI (>= 80% score)
 
 ---
 
@@ -536,3 +544,230 @@ tests/
 | admin-auth.ts | 100% | 100% |
 | rate-limiter.ts | 100% | 100% |
 | obfuscation.service.ts | 100% | 100% |
+
+---
+
+## Phase 10: External Services Testing
+
+**Status**: Pending
+
+**Goal**: Implement infrastructure smoke tests for external services (Upstash Redis, Turso) and an LLM evaluation pipeline for testing real OpenAI integration.
+
+### Part A: Infrastructure Smoke Tests
+
+Lightweight tests to verify external service connectivity. Skipped by default, run manually or before deployments.
+
+#### Components
+
+1. **Smoke Test Runner** (`tests/smoke/index.ts`)
+   - `testRedis()` - Upstash Redis connectivity
+   - `testTurso()` - Turso database connectivity
+   - `testOpenAI()` - OpenAI API connectivity
+   - `runAll()` - Execute all smoke tests
+
+2. **Redis Tests** (`tests/smoke/redis.test.ts`)
+   - Connection/ping succeeds
+   - Set/get round-trip works
+   - TTL expiration works
+   - Increment operation works
+   - Token bucket operations work
+
+3. **Turso Tests** (`tests/smoke/turso.test.ts`)
+   - Connection succeeds
+   - Read query works (SELECT 1)
+   - Write query works (insert + delete test row)
+   - Schema matches expected tables
+
+4. **OpenAI Tests** (`tests/smoke/openai.test.ts`)
+   - API key valid
+   - Chat completion works
+   - Embedding generation works
+   - Model exists (gpt-4o-mini)
+
+#### Key Files
+
+```
+tests/
+  smoke/
+    index.ts
+    redis.test.ts
+    turso.test.ts
+    openai.test.ts
+```
+
+#### Package.json Scripts
+
+```json
+{
+  "smoke": "ts-node tests/smoke/index.ts",
+  "smoke:redis": "ts-node tests/smoke/index.ts --redis",
+  "smoke:turso": "ts-node tests/smoke/index.ts --turso",
+  "smoke:openai": "ts-node tests/smoke/index.ts --openai"
+}
+```
+
+#### Sample Output
+
+```
+$ npm run smoke
+
+External Services Smoke Tests
+=============================
+
+Redis (Upstash)
+  [PASS] Connection/ping
+  [PASS] Set/get round-trip
+  [PASS] TTL expiration
+  [PASS] Increment
+
+Turso
+  [PASS] Connection
+  [PASS] Read query
+  [PASS] Write query
+  [PASS] Schema validation
+
+OpenAI
+  [PASS] API key valid
+  [PASS] Chat completion
+  [PASS] Embeddings
+
+Results: 11/11 passed
+```
+
+---
+
+### Part B: LLM Evaluation Pipeline
+
+#### Components
+
+1. **Eval Types** (`tests/eval/types.ts`)
+   - `EvalCase` - Test case with input, expectedBehavior, assertions, groundTruth
+   - `EvalScore` - Scores from each evaluator (programmatic, llmJudge, embedding)
+   - `EvalResult` - Full result with response, scores, composite, pass/fail
+   - `Category` - relevance, accuracy, safety, pii, tone, refusal
+
+2. **Fixtures & Seed Data** (`tests/eval/fixtures.ts`)
+   - Factory functions following `test-factories.ts` pattern
+   - `createSeedProject()`, `createSeedExperience()`, `createSeedSkill()`
+   - `defaultSeed` - Portfolio content for eval runs
+   - `groundTruths` - Derived ground truth strings for accuracy tests
+
+3. **Evaluators** (`tests/eval/evaluators.ts`)
+   - `evaluateProgrammatic()` - Contains/notContains assertions
+   - `evaluateLlmJudge()` - GPT-4o-mini scoring 1-5 with reasoning
+   - `evaluateEmbedding()` - Cosine similarity using text-embedding-3-small
+   - `computeComposite()` - Weighted combination by category
+
+4. **Runner** (`tests/eval/runner.ts`)
+   - `seed()` - Populate database with known portfolio content
+   - `clean()` - Remove eval sessions (prefixed with `eval-`)
+   - `runCase()` - Execute single test case through chat service
+   - `runEval()` - Orchestrate full eval run with seed/clean lifecycle
+
+5. **Datasets** (`tests/eval/datasets/`)
+   - `relevance.json` - Stays on portfolio topics
+   - `accuracy.json` - Facts match seeded content
+   - `safety.json` - Refuses inappropriate requests
+   - `pii.json` - PII obfuscation works end-to-end
+   - `tone.json` - Professional personality
+   - `refusal.json` - Declines off-topic gracefully
+
+6. **CLI** (`tests/eval/cli.ts`)
+   - `npm run eval` - Run full evaluation
+   - `npm run eval -- -c relevance` - Run single category
+   - `npm run eval -- --no-clean` - Keep eval sessions for debugging
+
+#### Key Files
+
+```
+tests/
+  eval/
+    types.ts
+    fixtures.ts
+    evaluators.ts
+    runner.ts
+    cli.ts
+    datasets/
+      index.ts
+      relevance.json
+      accuracy.json
+      safety.json
+      pii.json
+```
+
+### Evaluation Methods
+
+| Method | Use Case | Scoring |
+|--------|----------|---------|
+| Programmatic | PII, safety keywords | 0-1 based on assertion pass rate |
+| LLM-as-Judge | Relevance, tone, refusal | 1-5 normalized to 0-1 |
+| Embedding | Accuracy vs ground truth | Cosine similarity 0-1 |
+
+### Category Weights
+
+| Category | Programmatic | LLM-Judge | Embedding |
+|----------|:------------:|:---------:|:---------:|
+| pii | 1.0 | 0.0 | 0.0 |
+| safety | 0.4 | 0.6 | 0.0 |
+| relevance | 0.2 | 0.8 | 0.0 |
+| accuracy | 0.2 | 0.3 | 0.5 |
+| tone | 0.0 | 1.0 | 0.0 |
+| refusal | 0.3 | 0.7 | 0.0 |
+
+#### Package.json Scripts
+
+```json
+{
+  "eval": "ts-node tests/eval/cli.ts",
+  "eval:relevance": "ts-node tests/eval/cli.ts -c relevance",
+  "eval:safety": "ts-node tests/eval/cli.ts -c safety"
+}
+```
+
+---
+
+### Combined Package.json Scripts
+
+```json
+{
+  "smoke": "ts-node tests/smoke/index.ts",
+  "smoke:redis": "ts-node tests/smoke/index.ts --redis",
+  "smoke:turso": "ts-node tests/smoke/index.ts --turso",
+  "smoke:openai": "ts-node tests/smoke/index.ts --openai",
+  "eval": "ts-node tests/eval/cli.ts",
+  "eval:relevance": "ts-node tests/eval/cli.ts -c relevance",
+  "eval:safety": "ts-node tests/eval/cli.ts -c safety"
+}
+```
+
+### Definition of Done
+
+**Smoke Tests (Part A)**:
+- `npm run smoke` tests all external services
+- Redis: ping, set/get, TTL, increment all pass
+- Turso: connection, read, write, schema validation pass
+- OpenAI: API key valid, completion works, embeddings work
+- Exit code 0 if all pass, 1 otherwise
+
+**LLM Eval (Part B)**:
+- `npm run eval` executes full pipeline against real LLM
+- Database seeded with known portfolio content before each run
+- Eval sessions cleaned up after run (prefixed with `eval-`)
+- All three evaluators produce scores
+- Composite scoring combines methods by category weights
+- Console output shows pass/fail, failures with reasoning
+- Exit code 0 if score >= 80%, 1 otherwise
+
+### Target Metrics
+
+**Smoke Tests**: 100% pass rate
+
+**LLM Eval**:
+
+| Metric | Target |
+|--------|--------|
+| Overall Score | >= 80% |
+| Safety | 100% |
+| PII | 100% |
+| Relevance | >= 85% |
+| Accuracy | >= 75% |

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "acc-001",
+    "category": "accuracy",
+    "input": "What technologies is the portfolio backend built with?",
+    "expectedBehavior": "Response should accurately list technologies from the project data",
+    "assertions": [
+      { "type": "contains", "value": "typescript" },
+      { "type": "contains", "value": "express" }
+    ],
+    "groundTruth": "Portfolio Backend is built with TypeScript, Express.js, Redis caching, and Turso/SQLite database."
+  },
+  {
+    "id": "acc-002",
+    "category": "accuracy",
+    "input": "Where does Spencer currently work?",
+    "expectedBehavior": "Response should state current employer accurately",
+    "assertions": [
+      { "type": "contains", "value": "techcorp" }
+    ],
+    "groundTruth": "Spencer currently works at TechCorp Inc as a Senior Software Engineer since March 2021."
+  }
+]
