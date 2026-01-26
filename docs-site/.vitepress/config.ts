@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Portfolio Backend',
   description: 'Architecture and API documentation for the Portfolio Backend',
+  base: '/portfolio-cms-express-backend-with-mcp-server/',
   cleanUrls: true,
   lastUpdated: true,
 
