@@ -72,32 +72,23 @@ Names and addresses in chat context are acceptable because:
 
 ## Obfuscation Flow
 
-```
-User Message                     Obfuscated Message
----------------------------------------------------------------------
-"Contact me at                   "Contact me at
- john@example.com                 [EMAIL_1]
- or call 555-1234"               or call [PHONE_1]"
-        |                                |
-        v                                v
-+------------------+            +------------------+
-|  PIIObfuscator   |            |    LLM Call      |
-|                  |            |                  |
-|  detect()        |----------->|  chat(messages)  |
-|  obfuscate()     |            |                  |
-|  storeMapping()  |            +--------+---------+
-+------------------+                     |
-        ^                                v
-        |                       +------------------+
-        |                       |  LLM Response    |
-        +-----------------------|  "I'll reach    |
-           deobfuscate()        |   you at        |
-                                |   [EMAIL_1]"    |
-                                +--------+---------+
-                                         |
-                                         v
-                                "I'll reach you at
-                                 john@example.com"
+```mermaid
+sequenceDiagram
+    participant User
+    participant Obfuscator as PII Obfuscator
+    participant LLM as LLM Provider
+
+    User->>Obfuscator: "Contact me at john@example.com<br/>or call 555-1234"
+
+    Note over Obfuscator: detect() & obfuscate()<br/>Store mapping
+
+    Obfuscator->>LLM: "Contact me at [EMAIL_1]<br/>or call [PHONE_1]"
+
+    LLM-->>Obfuscator: "I'll reach you at [EMAIL_1]"
+
+    Note over Obfuscator: deobfuscate()<br/>Restore original values
+
+    Obfuscator-->>User: "I'll reach you at john@example.com"
 ```
 
 ### Conversation Continuity

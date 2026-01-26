@@ -33,41 +33,29 @@ Extract shared tool logic into a core tools layer (`src/tools/core/`) that both 
 
 ### Architecture
 
-```
-                        +------------------+
-                        |   Chat Service   |
-                        |   (OpenAI API)   |
-                        +--------+---------+
-                                 |
-                                 v
-+------------------+    +------------------+    +------------------+
-|   MCP Server     |    |   OpenAI Adapter |    |   Zod Schemas    |
-|   (MCP SDK)      |    | (zod-to-json-    |    |   (validation)   |
-|                  |    |     schema)      |    |                  |
-+--------+---------+    +--------+---------+    +------------------+
-         |                       |
-         |                       |
-         +----------+------------+
-                    |
-                    v
-         +---------------------+
-         |    Core Tools       |
-         | (src/tools/core/)   |
-         |                     |
-         | - listContent()     |
-         | - getContent()      |
-         | - searchContent()   |
-         +----------+----------+
-                    |
-                    v
-         +---------------------+
-         | Content Repository  |
-         +---------------------+
-                    |
-                    v
-         +---------------------+
-         |     Turso DB        |
-         +---------------------+
+```mermaid
+flowchart TB
+    chatService["Chat Service<br/><i>OpenAI API</i>"]
+
+    subgraph adapters["Protocol Adapters"]
+        mcpServer["MCP Server<br/><i>MCP SDK</i>"]
+        openaiAdapter["OpenAI Adapter<br/><i>zod-to-json-schema</i>"]
+        zodSchemas["Zod Schemas<br/><i>validation</i>"]
+    end
+
+    subgraph core["Core Tools Layer"]
+        coreTools["Core Tools<br/><i>src/tools/core/</i><br/>listContent()<br/>getContent()<br/>searchContent()"]
+    end
+
+    repo["Content Repository"]
+    turso[("Turso DB")]
+
+    chatService --> openaiAdapter
+    mcpServer --> coreTools
+    openaiAdapter --> coreTools
+    zodSchemas -.-> openaiAdapter
+    coreTools --> repo
+    repo --> turso
 ```
 
 ### File Structure

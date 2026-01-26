@@ -11,18 +11,29 @@ This document defines the content types, schemas, and validation rules for the P
 
 All content is stored in a single `content` table with a flexible JSON `data` column. Content is categorized by `type` and optionally identified by `slug`.
 
+```mermaid
+erDiagram
+    content {
+        uuid id PK
+        enum type "project|page|list|config"
+        string slug UK
+        json data
+        enum status "draft|published"
+        int version
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp deletedAt
+    }
 ```
-+------------------------------------------------------------------+
-|                        content table                              |
-+--------+----------+----------+-----------------+--------+---------+
-|   id   |   type   |   slug   |      data       | status |  ...    |
-+--------+----------+----------+-----------------+--------+---------+
-| uuid   | project  | my-app   | {title, desc..} | pub    |         |
-| uuid   | page     | about    | {title, body..} | pub    |         |
-| uuid   | list     | skills   | {items: [...]}  | pub    |         |
-| uuid   | config   | site     | {name, email..} | pub    |         |
-+--------+----------+----------+-----------------+--------+---------+
-```
+
+**Example data:**
+
+| type | slug | data | status |
+|------|------|------|--------|
+| project | my-app | `{title, desc...}` | published |
+| page | about | `{title, body...}` | published |
+| list | skills | `{items: [...]}` | published |
+| config | site | `{name, email...}` | published |
 
 ## Base Schema
 

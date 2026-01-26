@@ -70,27 +70,20 @@ const chat = await fetch('/api/v1/chat', {
 
 Both integrations share the same data layer:
 
-```
-+------------------+              +------------------+
-|   REST API       |              |   MCP Server     |
-|   (Express)      |              |   (MCP SDK)      |
-+--------+---------+              +--------+---------+
-         |                                 |
-         +----------------+----------------+
-                          |
-                +---------+---------+
-                | Content Repository |
-                |                    |
-                | - findAll()        |
-                | - findBySlug()     |
-                | - create()         |
-                | - update()         |
-                +----------+---------+
-                           |
-                           v
-                     +----------+
-                     | Turso DB |
-                     +----------+
+```mermaid
+flowchart TB
+    restApi["REST API<br/><i>Express</i>"]
+    mcpServer["MCP Server<br/><i>MCP SDK</i>"]
+
+    subgraph dataLayer["Shared Data Layer"]
+        repo["Content Repository<br/><i>findAll(), findBySlug()<br/>create(), update()</i>"]
+    end
+
+    turso[("Turso DB")]
+
+    restApi --> repo
+    mcpServer --> repo
+    repo --> turso
 ```
 
 This ensures:

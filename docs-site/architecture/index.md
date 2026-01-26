@@ -38,37 +38,42 @@ All dependencies are injected, enabling:
 
 Side effects (cache invalidation, metrics, audit logs) are decoupled via events:
 
-```
-Service -> Event Bus -> Handlers (async)
+```mermaid
+flowchart LR
+    Service --> EventBus["Event Bus"] --> Handlers["Handlers<br/><i>async</i>"]
 ```
 
 This keeps core logic focused and testable.
 
 ## System Overview
 
-```
-                    Frontend
-                       |
-                       v
-              +----------------+
-              |  Express API   |
-              |  (Routes)      |
-              +-------+--------+
-                      |
-              +-------+--------+
-              |   Services     |
-              | (Business Logic)|
-              +-------+--------+
-                      |
-       +--------------+--------------+
-       |              |              |
-+------+------+ +-----+------+ +-----+------+
-| Repositories| | LLM Provider| | Cache      |
-| (Drizzle)   | | (OpenAI)    | | (Redis)    |
-+------+------+ +-----+------+ +-----+------+
-       |              |              |
-       v              v              v
-   Turso DB      LLM API        Redis
+```mermaid
+flowchart TB
+    frontend["Frontend"]
+
+    subgraph app["Express Application"]
+        routes["Express API<br/><i>Routes</i>"]
+        services["Services<br/><i>Business Logic</i>"]
+    end
+
+    subgraph infra["Infrastructure Layer"]
+        repos["Repositories<br/><i>Drizzle ORM</i>"]
+        llmProvider["LLM Provider<br/><i>OpenAI</i>"]
+        cache["Cache<br/><i>Redis</i>"]
+    end
+
+    turso[("Turso DB")]
+    llmApi["LLM API"]
+    redis[("Redis")]
+
+    frontend --> routes
+    routes --> services
+    services --> repos
+    services --> llmProvider
+    services --> cache
+    repos --> turso
+    llmProvider --> llmApi
+    cache --> redis
 ```
 
 ## Key Components

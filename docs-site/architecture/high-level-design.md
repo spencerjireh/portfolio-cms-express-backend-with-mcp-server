@@ -40,26 +40,27 @@ A TypeScript/Express backend serving a personal portfolio website with:
 ### C4 Level 1: System Context Diagram
 
 ```mermaid
-C4Context
-    title System Context Diagram - Portfolio Backend
+flowchart TB
+    subgraph Actors
+        visitor["Portfolio Visitor<br/><i>Views portfolio, chats with AI</i>"]
+        admin["Admin User<br/><i>Manages content, views analytics</i>"]
+        aiTools["AI Tools<br/><i>Claude Desktop, MCP clients</i>"]
+    end
 
-    Person(visitor, "Portfolio Visitor", "Views portfolio and chats with AI")
-    Person(admin, "Admin User", "Manages content and views analytics")
-    System_Ext(aiTools, "AI Tools", "Claude Desktop, other MCP clients")
+    backend["Portfolio Backend<br/><i>Serves content, AI chat, MCP tools</i>"]
 
-    System(backend, "Portfolio Backend", "Serves portfolio content, handles AI chat, provides MCP tools")
+    subgraph External["External Systems"]
+        turso[("Turso<br/><i>Edge-replicated SQLite</i>")]
+        redis[("Redis<br/><i>Cache and rate limiting</i>")]
+        llm["LLM API<br/><i>OpenAI-compatible</i>"]
+    end
 
-    System_Ext(turso, "Turso", "Edge-replicated SQLite database")
-    System_Ext(redis, "Redis", "Cache and rate limiting state")
-    System_Ext(llm, "LLM API", "OpenAI-compatible API")
-
-    Rel(visitor, backend, "Views portfolio, Chats with AI")
-    Rel(admin, backend, "Manages content, Views analytics")
-    Rel(aiTools, backend, "Uses MCP tools")
-
-    Rel(backend, turso, "Stores data")
-    Rel(backend, redis, "Caches data")
-    Rel(backend, llm, "AI responses")
+    visitor --> backend
+    admin --> backend
+    aiTools --> backend
+    backend --> turso
+    backend --> redis
+    backend --> llm
 ```
 
 ### External Systems
@@ -84,32 +85,32 @@ C4Context
 ### C4 Level 2: Container Diagram
 
 ```mermaid
-C4Container
-    title Container Diagram - Portfolio Backend
+flowchart TB
+    client["Client<br/><i>Browser or API consumer</i>"]
 
-    Person(client, "Client", "Browser or API consumer")
+    subgraph app["Express Application"]
+        routes["Routes Layer<br/><i>Public, Admin, Health</i>"]
+        middleware["Middleware Stack<br/><i>Security, Context, Logger, Rate Limit</i>"]
+        services["Services Layer<br/><i>ContentService, ChatService</i>"]
+        repos["Repositories<br/><i>Drizzle ORM</i>"]
+        infra["Infrastructure<br/><i>Cache, Circuit Breaker, Event Bus</i>"]
+    end
 
-    Container_Boundary(app, "Express Application") {
-        Container(routes, "Routes Layer", "Express", "Public, Admin, Health routes")
-        Container(middleware, "Middleware Stack", "Express", "Security, Context, Logger, Rate Limit, Idempotency")
-        Container(services, "Services Layer", "TypeScript", "ContentService, ChatService, ObfuscationService")
-        Container(repos, "Repositories", "Drizzle ORM", "ContentRepository, ChatRepository")
-        Container(infra, "Infrastructure", "TypeScript", "Cache, Circuit Breaker, Rate Limiter, Event Bus")
-    }
+    subgraph External["External Systems"]
+        turso[("Turso DB")]
+        redis[("Redis Cache")]
+        llm["LLM API"]
+        otlp["OTLP Collector"]
+    end
 
-    System_Ext(turso, "Turso DB", "Database")
-    System_Ext(redis, "Redis Cache", "Cache")
-    System_Ext(llm, "LLM API", "AI Provider")
-    System_Ext(otlp, "OTLP Collector", "Observability")
-
-    Rel(client, routes, "HTTP requests")
-    Rel(routes, middleware, "Processes through")
-    Rel(middleware, services, "Calls")
-    Rel(services, repos, "Data access")
-    Rel(repos, turso, "Queries")
-    Rel(infra, redis, "Cache ops")
-    Rel(services, llm, "Chat requests")
-    Rel(infra, otlp, "Traces")
+    client --> routes
+    routes --> middleware
+    middleware --> services
+    services --> repos
+    repos --> turso
+    infra --> redis
+    services --> llm
+    infra --> otlp
 ```
 
 ### Container Responsibilities

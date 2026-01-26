@@ -31,18 +31,23 @@ Use a **hybrid approach**:
 3. Runtime validation via Zod schemas per content type
 4. No database-level JSON schema enforcement
 
+```mermaid
+erDiagram
+    content {
+        uuid id PK
+        enum type
+        string slug
+        json data
+        enum status
+    }
 ```
-+-------------------------------------------------------------+
-|                        content table                         |
-+-------------------------------------------------------------+
-| id         | type     | slug     | data (JSON) | status |...|
-+------------+----------+----------+-------------+--------+---+
-| uuid-1     | project  | app-x    | {title:...} | pub    |   |
-| uuid-2     | page     | about    | {content:}  | pub    |   |
-| uuid-3     | list     | skills   | {items:[]}  | draft  |   |
-| uuid-4     | config   | site     | {name:...}  | pub    |   |
-+-------------------------------------------------------------+
-```
+
+| id | type | slug | data | status |
+|----|------|------|------|--------|
+| uuid-1 | project | app-x | `{title:...}` | published |
+| uuid-2 | page | about | `{content:...}` | published |
+| uuid-3 | list | skills | `{items:[]}` | draft |
+| uuid-4 | config | site | `{name:...}` | published |
 
 ## Alternatives Considered
 
