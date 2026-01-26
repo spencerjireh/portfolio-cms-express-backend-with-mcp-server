@@ -75,3 +75,51 @@
   background-color: var(--vp-c-red-soft);
   color: var(--vp-c-red-1);
 }
+
+/* Mermaid diagram styles */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background-color: var(--vp-c-bg-soft);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Dark mode adjustments for Mermaid */
+.dark .mermaid {
+  background-color: var(--vp-c-bg-alt);
+}
+
+/* Responsive diagram sizing */
+@media (max-width: 768px) {
+  .mermaid {
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* C4 diagram specific styles */
+.mermaid .person rect,
+.mermaid .system rect,
+.mermaid .container rect {
+  rx: 4;
+  ry: 4;
+}
+
+/* Sequence diagram improvements */
+.mermaid .actor {
+  font-weight: 500;
+}
+
+/* State diagram improvements */
+.mermaid .statediagram-state rect {
+  rx: 6;
+  ry: 6;
+}

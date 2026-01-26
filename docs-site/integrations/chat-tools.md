@@ -9,19 +9,15 @@ description: How the chat service uses tools to query portfolio data
 
 The chat service uses **OpenAI function calling** to give the AI assistant access to portfolio data. When a visitor asks about projects, skills, or experience, the LLM can call tools to query accurate, up-to-date information from the database.
 
-```
-+----------+     +------------+     +----------+     +----------+
-|  Client  |---->|    Chat    |---->|   LLM    |---->|  Tools   |
-|          |     |  Service   |     | (OpenAI) |     |          |
-+----------+     +------------+     +----+-----+     +----+-----+
-                                         |               |
-                                         | tool_call     | query
-                                         |               |
-                                         v               v
-                                    +----------+    +----------+
-                                    |  Tool    |    | Content  |
-                                    |  Loop    |    |   Repo   |
-                                    +----------+    +----------+
+```mermaid
+flowchart LR
+    Client([Client]) --> ChatSvc[Chat Service]
+    ChatSvc --> LLM[LLM<br/>(OpenAI)]
+    LLM -->|tool_call| Tools[Tools]
+    Tools -->|query| Repo[Content Repo]
+
+    LLM -->|tool_call| Loop[Tool Loop]
+    Loop --> Tools
 ```
 
 ## Available Tools
@@ -98,72 +94,38 @@ Search content by keywords across all text fields.
 
 The chat service implements an iterative tool loop that allows the LLM to make multiple tool calls before generating a final response:
 
-```
-1. User sends message
-         |
-         v
-2. Build conversation history + system prompt
-         |
-         v
-3. Call LLM with tools -----> LLM decides: tool_call or response?
-         |                              |
-         |                       +------+------+
-         |                       |             |
-         |                  tool_call      response
-         |                       |             |
-         |                       v             v
-         |               4. Execute tool   Return to user
-         |                       |
-         |                       v
-         +<------- 5. Add tool result to history
-                   6. Loop (up to 5 iterations)
+```mermaid
+flowchart TD
+    A[1. User sends message] --> B[2. Build conversation history + system prompt]
+    B --> C[3. Call LLM with tools]
+    C --> D{LLM decides}
+
+    D -->|tool_call| E[4. Execute tool]
+    D -->|response| F[Return to user]
+
+    E --> G[5. Add tool result to history]
+    G --> H{Iteration < 5?}
+    H -->|Yes| C
+    H -->|No| F
 ```
 
 ### Sequence Diagram
 
-```
-+--------+     +---------+     +---------+     +---------+
-| Client |     |  Chat   |     |   LLM   |     |  Tools  |
-+---+----+     +----+----+     +----+----+     +----+----+
-    |               |               |               |
-    | POST /chat    |               |               |
-    | "What projects|               |               |
-    |  use React?"  |               |               |
-    |-------------->|               |               |
-    |               |               |               |
-    |               | messages +    |               |
-    |               | tools         |               |
-    |               |-------------->|               |
-    |               |               |               |
-    |               |    tool_call: |               |
-    |               |    search_content             |
-    |               |    {query:"react"}            |
-    |               |<--------------|               |
-    |               |               |               |
-    |               | search_content|               |
-    |               | ({query:      |               |
-    |               |   "react"})   |               |
-    |               |------------------------------>|
-    |               |               |               |
-    |               |        [{slug:"portfolio",    |
-    |               |          data:{tags:["react"]}|
-    |               |         }]                    |
-    |               |<------------------------------|
-    |               |               |               |
-    |               | messages +    |               |
-    |               | tool_result   |               |
-    |               |-------------->|               |
-    |               |               |               |
-    |               |  "I found     |               |
-    |               |   2 React     |               |
-    |               |   projects.." |               |
-    |               |<--------------|               |
-    |               |               |               |
-    | {message:     |               |               |
-    |  "I found 2   |               |               |
-    |   React..."}  |               |               |
-    |<--------------|               |               |
-    |               |               |               |
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ChatSvc as Chat Service
+    participant LLM
+    participant Tools
+
+    Client->>ChatSvc: POST /chat<br/>"What projects use React?"
+    ChatSvc->>LLM: messages + tools
+    LLM-->>ChatSvc: tool_call: search_content<br/>{query: "react"}
+    ChatSvc->>Tools: search_content({query: "react"})
+    Tools-->>ChatSvc: [{slug: "portfolio", data: {tags: ["react"]}}]
+    ChatSvc->>LLM: messages + tool_result
+    LLM-->>ChatSvc: "I found 2 React projects..."
+    ChatSvc-->>Client: {message: "I found 2 React..."}
 ```
 
 ## System Prompt
@@ -268,4 +230,3 @@ See [ADR-008: Shared Tools Architecture](/decisions/008-shared-tools-architectur
 - [MCP Server Integration](/integrations/mcp-server) - For AI assistant integration
 - [ADR-008: Shared Tools](/decisions/008-shared-tools-architecture) - Architecture decision
 - [High-Level Design](/architecture/high-level-design) - System architecture
-

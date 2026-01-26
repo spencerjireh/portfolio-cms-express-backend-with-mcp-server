@@ -126,12 +126,13 @@ redis-cli -u $REDIS_URL FLUSHDB
 
 ### Understanding States
 
-```
-CLOSED --[failures >= 5]--> OPEN --[30s timeout]--> HALF_OPEN
-   ^                                                    |
-   |                         +--------------------------+
-   |                         |
-   +---[success threshold]---+
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED
+    CLOSED --> OPEN : failures >= 5
+    OPEN --> HALF_OPEN : 30s timeout
+    HALF_OPEN --> CLOSED : success threshold
+    HALF_OPEN --> OPEN : any failure
 ```
 
 ### Checking Circuit Breaker State

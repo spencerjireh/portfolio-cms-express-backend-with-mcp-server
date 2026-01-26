@@ -13,138 +13,72 @@ description: Component design, class diagrams, and sequence diagrams
 
 ### C4 Level 3: Component Diagram
 
-```
-                            EXPRESS APPLICATION
+```mermaid
+flowchart TB
+    subgraph Routes["ROUTES LAYER"]
+        R1["v1/content<br/>GET /, GET /:type/:slug, GET /bundle"]
+        R2["v1/chat<br/>POST /"]
+        R3["v1/admin/*<br/>GET, POST, PUT, DELETE"]
+        R4["health/*<br/>GET /live, /ready, /startup"]
+    end
 
-+-------------------------------------------------------------------------+
-|                              ROUTES LAYER                                |
-|                                                                          |
-|  +--------------+  +--------------+  +--------------+  +--------------+  |
-|  |   v1/        |  |   v1/        |  |   v1/admin/  |  |   health/    |  |
-|  |   content    |  |   chat       |  |   *          |  |   *          |  |
-|  |              |  |              |  |              |  |              |  |
-|  | GET /        |  | POST /       |  | GET /content |  | GET /live    |  |
-|  | GET /:type/  |  |              |  | POST /content|  | GET /ready   |  |
-|  |     :slug    |  |              |  | PUT /content |  | GET /startup |  |
-|  | GET /bundle  |  |              |  | DELETE /     |  |              |  |
-|  +------+-------+  +------+-------+  +------+-------+  +--------------+  |
-|         |                 |                 |                            |
-+---------+-----------------+-----------------+----------------------------+
-          |                 |                 |
-          v                 v                 v
-+-------------------------------------------------------------------------+
-|                             SERVICES LAYER                               |
-|                                                                          |
-|  +----------------------+  +----------------------+                      |
-|  |    ContentService    |  |     ChatService      |                      |
-|  |                      |  |                      |                      |
-|  | + getAll(filters)    |  | + processMessage()   |                      |
-|  | + getBySlug()        |  | + getOrCreateSession |                      |
-|  | + getBundle()        |  | + endSession()       |                      |
-|  | + create()           |  |                      |                      |
-|  | + update()           |  |      Uses:           |                      |
-|  | + delete()           |  |  - ObfuscationSvc    |                      |
-|  | + getHistory()       |  |  - LLMProvider       |                      |
-|  | + restoreVersion()   |  |  - CircuitBreaker    |                      |
-|  +----------+-----------+  +----------+-----------+                      |
-|             |                         |                                  |
-+-------------+-------------------------+----------------------------------+
-              |                         |
-              v                         v
-+-------------------------------------------------------------------------+
-|                           REPOSITORIES LAYER                             |
-|                                                                          |
-|  +----------------------+  +----------------------+                      |
-|  |  ContentRepository   |  |   ChatRepository     |                      |
-|  |                      |  |                      |                      |
-|  | + findById()         |  | + createSession()    |                      |
-|  | + findBySlug()       |  | + findSession()      |                      |
-|  | + findAll()          |  | + updateActivity()   |                      |
-|  | + create()           |  | + endSession()       |                      |
-|  | + update()           |  | + addMessage()       |                      |
-|  | + delete()           |  | + getMessages()      |                      |
-|  | + search()           |  | + getStats()         |                      |
-|  | + getHistory()       |  | + findExpired()      |                      |
-|  +----------+-----------+  +----------+-----------+                      |
-|             |                         |                                  |
-+-------------+------------+------------+----------------------------------+
-                           |
-                           v
-+-------------------------------------------------------------------------+
-|                          INFRASTRUCTURE LAYER                            |
-|                                                                          |
-|  +------------+  +------------+  +------------+  +------------+          |
-|  |   Cache    |  |  Circuit   |  |   Rate     |  |   Event    |          |
-|  |  Provider  |  |  Breaker   |  |  Limiter   |  |    Bus     |          |
-|  |            |  |            |  |            |  |            |          |
-|  | Memory /   |  | States:    |  | Token      |  | Typed      |          |
-|  | Redis      |  | closed/    |  | Bucket     |  | Emitter    |          |
-|  |            |  | open/      |  | Algorithm  |  |            |          |
-|  |            |  | half_open  |  |            |  |            |          |
-|  +------------+  +------------+  +------------+  +------------+          |
-|                                                                          |
-|  +------------+  +------------+  +------------+  +------------+          |
-|  |    LLM     |  | Obfuscation|  |   Job      |  |  Request   |          |
-|  |  Provider  |  |  Context   |  | Scheduler  |  |  Context   |          |
-|  |            |  |            |  |            |  |            |          |
-|  | OpenAI-    |  | PII        |  | Background |  | AsyncLocal |          |
-|  | compatible |  | Detection  |  | Tasks      |  | Storage    |          |
-|  +------------+  +------------+  +------------+  +------------+          |
-+-------------------------------------------------------------------------+
+    subgraph Services["SERVICES LAYER"]
+        S1["ContentService<br/>getAll, getBySlug, getBundle<br/>create, update, delete, getHistory"]
+        S2["ChatService<br/>processMessage<br/>getOrCreateSession, endSession"]
+    end
+
+    subgraph Repos["REPOSITORIES LAYER"]
+        Repo1["ContentRepository<br/>findById, findBySlug, findAll<br/>create, update, delete, search"]
+        Repo2["ChatRepository<br/>createSession, findSession<br/>updateActivity, addMessage"]
+    end
+
+    subgraph Infra["INFRASTRUCTURE LAYER"]
+        I1["Cache Provider<br/>Memory / Redis"]
+        I2["Circuit Breaker<br/>closed/open/half_open"]
+        I3["Rate Limiter<br/>Token Bucket"]
+        I4["Event Bus<br/>Typed Emitter"]
+        I5["LLM Provider<br/>OpenAI-compatible"]
+        I6["Obfuscation Context<br/>PII Detection"]
+        I7["Job Scheduler<br/>Background Tasks"]
+        I8["Request Context<br/>AsyncLocalStorage"]
+    end
+
+    R1 --> S1
+    R2 --> S2
+    R3 --> S1
+
+    S1 --> Repo1
+    S2 --> Repo2
+    S2 --> I5
+    S2 --> I6
 ```
 
 ### Shared Tools Layer
 
 The tools layer provides unified tool implementations used by both MCP and Chat:
 
-```
-                                  SHARED TOOLS ARCHITECTURE
+```mermaid
+flowchart TB
+    subgraph Tools["src/tools/"]
+        Types["types.ts<br/>ToolResult&lt;T&gt;, ContentItem types"]
+        subgraph Core["core/"]
+            List["list-content<br/>listContent()"]
+            Get["get-content<br/>getContent()"]
+            Search["search-content<br/>searchContent()"]
+        end
+        Adapter["openai-adapter.ts<br/>chatToolDefinitions, executeToolCall()"]
+    end
 
-+------------------------------------------------------------------+
-|                           src/tools/                              |
-|                                                                   |
-|  +--------------------+                                           |
-|  |     types.ts       |  ToolResult<T>, ContentItem types         |
-|  +--------------------+                                           |
-|                                                                   |
-|  +--------------------+                                           |
-|  |      core/         |  Core tool implementations                |
-|  |  +---------------+ |                                           |
-|  |  | list-content  | |  listContent() - List by type             |
-|  |  +---------------+ |                                           |
-|  |  | get-content   | |  getContent() - Get by type/slug          |
-|  |  +---------------+ |                                           |
-|  |  | search-content| |  searchContent() - Search content         |
-|  |  +---------------+ |                                           |
-|  +--------------------+                                           |
-|                                                                   |
-|  +--------------------+                                           |
-|  | openai-adapter.ts  |  chatToolDefinitions, executeToolCall()   |
-|  +--------------------+                                           |
-|                                                                   |
-+------------------------------------------------------------------+
-          |                              |
-          v                              v
-+------------------+          +------------------+
-|   MCP Server     |          |   Chat Service   |
-|   (MCP SDK)      |          |   (OpenAI API)   |
-|                  |          |                  |
-| Wraps core with  |          | Wraps core with  |
-| MCP response     |          | JSON response    |
-| format           |          | format           |
-+------------------+          +------------------+
-          |                              |
-          +---------------+--------------+
-                          |
-                          v
-               +---------------------+
-               | Content Repository  |
-               +---------------------+
-                          |
-                          v
-               +---------------------+
-               |     Turso DB        |
-               +---------------------+
+    MCP["MCP Server<br/>(MCP SDK)<br/>MCP response format"]
+    Chat["Chat Service<br/>(OpenAI API)<br/>JSON response format"]
+
+    Core --> MCP
+    Core --> Chat
+    Adapter --> Chat
+
+    MCP --> Repo["Content Repository"]
+    Chat --> Repo
+    Repo --> DB[(Turso DB)]
 ```
 
 **Key components:**
@@ -176,398 +110,311 @@ const jsonSchema = zodToJsonSchema(ListContentInputSchema)
 
 ### Repository Interfaces
 
-```
-                        <<interface>>
-                    +---------------------+
-                    |    Repository<T>    |
-                    +---------------------+
-                    | + findById(id)      |
-                    | + findAll(filters)  |
-                    | + create(data)      |
-                    | + update(id, data)  |
-                    | + delete(id)        |
-                    | + count(filters)    |
-                    +---------+-----------+
-                              |
-              +---------------+---------------+
-              |                               |
-              v                               v
-    <<interface>>                   <<interface>>
-+---------------------+       +---------------------+
-| ContentRepository   |       |   ChatRepository    |
-+---------------------+       +---------------------+
-| + findBySlug()      |       | + createSession()   |
-| + search()          |       | + findSession()     |
-| + getBundle()       |       | + updateActivity()  |
-| + getHistory()      |       | + addMessage()      |
-| + restoreVersion()  |       | + getMessages()     |
-+---------+-----------+       +---------+-----------+
-          |                             |
-          v                             v
-+---------------------+       +---------------------+
-|DrizzleContentRepo   |       | DrizzleChatRepo     |
-+---------------------+       +---------------------+
-| - db: DrizzleClient |       | - db: DrizzleClient |
-|                     |       |                     |
-| + findById()        |       | + createSession()   |
-| + findBySlug()      |       | + findSession()     |
-| + create()          |       | + addMessage()      |
-| + update()          |       | + getStats()        |
-| ...                 |       | ...                 |
-+---------------------+       +---------------------+
+```mermaid
+classDiagram
+    class Repository~T~ {
+        <<interface>>
+        +findById(id) T
+        +findAll(filters) T[]
+        +create(data) T
+        +update(id, data) T
+        +delete(id) void
+        +count(filters) number
+    }
+
+    class ContentRepository {
+        <<interface>>
+        +findBySlug(type, slug) Content
+        +search(query) Content[]
+        +getBundle() Bundle
+        +getHistory(id) History[]
+        +restoreVersion(id, version) Content
+    }
+
+    class ChatRepository {
+        <<interface>>
+        +createSession(data) Session
+        +findSession(id) Session
+        +updateActivity(id) void
+        +addMessage(sessionId, msg) Message
+        +getMessages(sessionId) Message[]
+    }
+
+    class DrizzleContentRepo {
+        -db: DrizzleClient
+        +findById()
+        +findBySlug()
+        +create()
+        +update()
+    }
+
+    class DrizzleChatRepo {
+        -db: DrizzleClient
+        +createSession()
+        +findSession()
+        +addMessage()
+        +getStats()
+    }
+
+    Repository <|-- ContentRepository
+    Repository <|-- ChatRepository
+    ContentRepository <|.. DrizzleContentRepo
+    ChatRepository <|.. DrizzleChatRepo
 ```
 
 ### Cache Provider Pattern
 
-```
-                        <<interface>>
-                    +---------------------+
-                    |    CacheProvider    |
-                    +---------------------+
-                    | + get<T>(key)       |
-                    | + set(key, val, ttl)|
-                    | + del(key)          |
-                    | + incr(key, ttl)    |
-                    | + decr(key)         |
-                    | + getTokenBucket()  |
-                    | + setTokenBucket()  |
-                    | + ping()            |
-                    | + close()           |
-                    +---------+-----------+
-                              |
-              +---------------+---------------+
-              |                               |
-              v                               v
-+---------------------+       +---------------------+
-|MemoryCacheProvider  |       | RedisCacheProvider  |
-+---------------------+       +---------------------+
-| - store: Map        |       | - client: Redis     |
-| - cleanupInterval   |       | - isConnected       |
-|                     |       |                     |
-| + get<T>()          |       | + get<T>()          |
-| + set()             |       | + set()             |
-| + cleanup()         |       | + hgetall()         |
-| ...                 |       | ...                 |
-+---------------------+       +---------------------+
+```mermaid
+classDiagram
+    class CacheProvider {
+        <<interface>>
+        +get~T~(key) T
+        +set(key, val, ttl) void
+        +del(key) void
+        +incr(key, ttl) number
+        +decr(key) number
+        +getTokenBucket(key) Bucket
+        +setTokenBucket(key, bucket) void
+        +ping() boolean
+        +close() void
+    }
 
-                    +---------------------+
-                    |    CacheFactory     |
-                    +---------------------+
-                    | - instance: Cache   |
-                    +---------------------+
-                    | + getCache()        |--> Returns Redis if available
-                    | + closeCache()      |    else Memory fallback
-                    +---------------------+
+    class MemoryCacheProvider {
+        -store: Map
+        -cleanupInterval: Timer
+        +get~T~()
+        +set()
+        +cleanup()
+    }
+
+    class RedisCacheProvider {
+        -client: Redis
+        -isConnected: boolean
+        +get~T~()
+        +set()
+        +hgetall()
+    }
+
+    class CacheFactory {
+        -instance: Cache
+        +getCache() CacheProvider
+        +closeCache() void
+    }
+
+    CacheProvider <|.. MemoryCacheProvider
+    CacheProvider <|.. RedisCacheProvider
+    CacheFactory --> CacheProvider : creates
 ```
 
 ### Error Class Hierarchy
 
-```
-                          +---------------+
-                          |     Error     |
-                          |   (builtin)   |
-                          +-------+-------+
-                                  |
-                                  v
-                          +---------------+
-                          |   AppError    |
-                          +---------------+
-                          | + message     |
-                          | + code        |
-                          | + statusCode  |
-                          | + isOperational|
-                          +-------+-------+
-                                  |
-          +-----------+-----------+-----------+-----------+
-          |           |           |           |           |
-          v           v           v           v           v
-   +------------+ +------------+ +------------+ +------------+ +------------+
-   |Validation  | | NotFound   | | RateLimit  | |   LLM      | |Unauthorized|
-   |   Error    | |   Error    | |   Error    | |   Error    | |   Error    |
-   +------------+ +------------+ +------------+ +------------+ +------------+
-   | + fields   | |            | |+ retryAfter| | + provider | |            |
-   |            | |            | |            | |            | |            |
-   | code: 400  | | code: 404  | | code: 429  | | code: 502  | | code: 401  |
-   +------------+ +------------+ +------------+ +------------+ +------------+
+```mermaid
+classDiagram
+    class Error {
+        +message: string
+        +stack: string
+    }
+
+    class AppError {
+        +message: string
+        +code: string
+        +statusCode: number
+        +isOperational: boolean
+    }
+
+    class ValidationError {
+        +fields: Record
+        code = 400
+    }
+
+    class NotFoundError {
+        code = 404
+    }
+
+    class RateLimitError {
+        +retryAfter: number
+        code = 429
+    }
+
+    class LLMError {
+        +provider: string
+        code = 502
+    }
+
+    class UnauthorizedError {
+        code = 401
+    }
+
+    Error <|-- AppError
+    AppError <|-- ValidationError
+    AppError <|-- NotFoundError
+    AppError <|-- RateLimitError
+    AppError <|-- LLMError
+    AppError <|-- UnauthorizedError
 ```
 
 ### Event System
 
-```
-+-------------------------------------------------------------------------+
-|                              EventMap                                    |
-|  (TypeScript interface defining all event types and payloads)            |
-+-------------------------------------------------------------------------+
-|  'content:created'  -> { id, type, slug, version }                       |
-|  'content:updated'  -> { id, type, version, previousVersion, ... }       |
-|  'content:deleted'  -> { id, type, hard }                                |
-|  'content:restored' -> { id, type, fromVersion, toVersion }              |
-|  'chat:session_started' -> { sessionId, visitorId, ipHash }              |
-|  'chat:message_sent'    -> { sessionId, messageId, role, tokensUsed }    |
-|  'chat:session_ended'   -> { sessionId, messageCount, totalTokens }      |
-|  'chat:rate_limited'    -> { ipHash, sessionId }                         |
-|  'circuit:state_changed' -> { name, previousState, newState }            |
-|  'cache:invalidated'     -> { pattern, reason }                          |
-|  'admin:action'          -> { action, resourceType, resourceId, ... }    |
-+------------------------------------+------------------------------------+
-                                    |
-                                    v
-                    +-------------------------------+
-                    |       TypedEventEmitter       |
-                    +-------------------------------+
-                    | - emitter: EventEmitter       |
-                    +-------------------------------+
-                    | + emit<K>(event, data)        |  Type-safe emit
-                    | + on<K>(event, handler)       |  Type-safe subscribe
-                    | + off<K>(event, handler)      |  Unsubscribe
-                    | + listenerCount<K>(event)     |
-                    +-------------------------------+
-                                    |
-                                    v
-                    +-------------------------------+
-                    |         Event Handlers        |
-                    +-------------------------------+
-                    | - Metrics tracking            |
-                    | - Cache invalidation          |
-                    | - Audit logging               |
-                    | - (Future: Webhooks)          |
-                    +-------------------------------+
+```mermaid
+flowchart TB
+    subgraph EventMap["EventMap (TypeScript interface)"]
+        E1["content:created -> {id, type, slug, version}"]
+        E2["content:updated -> {id, type, version, previousVersion}"]
+        E3["content:deleted -> {id, type, hard}"]
+        E4["content:restored -> {id, type, fromVersion, toVersion}"]
+        E5["chat:session_started -> {sessionId, visitorId, ipHash}"]
+        E6["chat:message_sent -> {sessionId, messageId, role, tokensUsed}"]
+        E7["chat:session_ended -> {sessionId, messageCount, totalTokens}"]
+        E8["chat:rate_limited -> {ipHash, sessionId}"]
+        E9["circuit:state_changed -> {name, previousState, newState}"]
+        E10["cache:invalidated -> {pattern, reason}"]
+        E11["admin:action -> {action, resourceType, resourceId}"]
+    end
+
+    EventMap --> Emitter["TypedEventEmitter<br/>emit&lt;K&gt;(event, data)<br/>on&lt;K&gt;(event, handler)<br/>off&lt;K&gt;(event, handler)"]
+
+    Emitter --> Handlers["Event Handlers<br/>- Metrics tracking<br/>- Cache invalidation<br/>- Audit logging<br/>- (Future: Webhooks)"]
 ```
 
 ## Database Design
 
 ### Entity Relationship Diagram
 
-```
-+-----------------------------+       +-----------------------------+
-|          content            |       |      content_history        |
-+-----------------------------+       +-----------------------------+
-| PK id          TEXT         |       | PK id          TEXT         |
-|    type        TEXT    NN   |<------| FK content_id  TEXT    NN   |
-|    slug        TEXT         |       |    version     INTEGER NN   |
-|    data        JSON    NN   |       |    data        JSON    NN   |
-|    status      TEXT         |       |    change_type TEXT    NN   |
-|    version     INTEGER      |       |    changed_by  TEXT         |
-|    sort_order  INTEGER      |       |    change_summary TEXT      |
-|    created_at  TIMESTAMP    |       |    created_at  TIMESTAMP    |
-|    updated_at  TIMESTAMP    |       +-----------------------------+
-|    deleted_at  TIMESTAMP    |
-+-----------------------------+       Indexes:
-| IDX content_type_idx        |       - content_history_version_idx
-| UNQ content_type_slug_idx   |       - content_history_content_idx
-| IDX content_deleted_idx     |       - content_history_type_idx
-+-----------------------------+
+```mermaid
+erDiagram
+    content {
+        TEXT id PK
+        TEXT type
+        TEXT slug
+        JSON data
+        TEXT status
+        INTEGER version
+        INTEGER sort_order
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+        TIMESTAMP deleted_at
+    }
 
+    content_history {
+        TEXT id PK
+        TEXT content_id FK
+        INTEGER version
+        JSON data
+        TEXT change_type
+        TEXT changed_by
+        TEXT change_summary
+        TIMESTAMP created_at
+    }
 
-+-----------------------------+       +-----------------------------+
-|       chat_sessions         |       |       chat_messages         |
-+-----------------------------+       +-----------------------------+
-| PK id          TEXT         |       | PK id          TEXT         |
-|    visitor_id  TEXT    NN   |<------| FK session_id  TEXT    NN   |
-|    ip_hash     TEXT         |       |    role        TEXT    NN   |
-|    user_agent  TEXT         |       |    content     TEXT    NN   |
-|    message_count INTEGER    |       |    tokens_used INTEGER      |
-|    status      TEXT         |       |    model       TEXT         |
-|    started_at  TIMESTAMP    |       |    created_at  TIMESTAMP    |
-|    last_active_at TIMESTAMP |       +-----------------------------+
-|    expires_at  TIMESTAMP    |
-+-----------------------------+       Indexes:
-| IDX chat_sessions_visitor   |       - chat_messages_session_idx
-| IDX chat_sessions_ip_hash   |
-| IDX chat_sessions_expires   |
-+-----------------------------+
+    chat_sessions {
+        TEXT id PK
+        TEXT visitor_id
+        TEXT ip_hash
+        TEXT user_agent
+        INTEGER message_count
+        TEXT status
+        TIMESTAMP started_at
+        TIMESTAMP last_active_at
+        TIMESTAMP expires_at
+    }
 
+    chat_messages {
+        TEXT id PK
+        TEXT session_id FK
+        TEXT role
+        TEXT content
+        INTEGER tokens_used
+        TEXT model
+        TIMESTAMP created_at
+    }
 
-Relationships:
-  content --------< content_history    (1:N, cascade delete)
-  chat_sessions --< chat_messages      (1:N, cascade delete)
+    content ||--o{ content_history : "has history"
+    chat_sessions ||--o{ chat_messages : "contains"
 ```
 
 ## Sequence Diagrams
 
 ### Content Bundle Request (Cache Hit)
 
-```
-+--------+          +---------+          +---------+          +---------+
-| Client |          |  Route  |          | Service |          |  Cache  |
-+---+----+          +----+----+          +----+----+          +----+----+
-    |                    |                    |                    |
-    | GET /api/v1/       |                    |                    |
-    | content/bundle     |                    |                    |
-    | If-None-Match: "x" |                    |                    |
-    |------------------->|                    |                    |
-    |                    |                    |                    |
-    |                    | getBundle()        |                    |
-    |                    |------------------->|                    |
-    |                    |                    |                    |
-    |                    |                    | get("content:      |
-    |                    |                    |     bundle")       |
-    |                    |                    |------------------->|
-    |                    |                    |                    |
-    |                    |                    |    cached data     |
-    |                    |                    |<-------------------|
-    |                    |                    |                    |
-    |                    |    bundle data     |                    |
-    |                    |<-------------------|                    |
-    |                    |                    |                    |
-    |                    | generateETag()     |                    |
-    |                    | compare with       |                    |
-    |                    | If-None-Match      |                    |
-    |                    |                    |                    |
-    |    304 Not         |                    |                    |
-    |    Modified        |                    |                    |
-    |<-------------------|                    |                    |
-    |                    |                    |                    |
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant Service
+    participant Cache
+
+    Client->>Route: GET /api/v1/content/bundle<br/>If-None-Match: "x"
+    Route->>Service: getBundle()
+    Service->>Cache: get("content:bundle")
+    Cache-->>Service: cached data
+    Service-->>Route: bundle data
+    Route->>Route: generateETag()<br/>compare with If-None-Match
+    Route-->>Client: 304 Not Modified
 ```
 
 ### Chat Message Flow (Full)
 
-```
-+--------+     +---------+     +---------+     +---------+     +---------+     +---------+     +---------+
-| Client |     |  Route  |     |RateLim  |     |ChatSvc  |     |Obfusc   |     |Circuit  |     |   LLM   |
-+---+----+     +----+----+     +----+----+     +----+----+     +----+----+     +----+----+     +----+----+
-    |               |               |               |               |               |               |
-    | POST /chat    |               |               |               |               |               |
-    | {message}     |               |               |               |               |               |
-    |-------------->|               |               |               |               |               |
-    |               |               |               |               |               |               |
-    |               | consume(ip)   |               |               |               |               |
-    |               |-------------->|               |               |               |               |
-    |               |               |               |               |               |               |
-    |               | {allowed:true}|               |               |               |               |
-    |               |<--------------|               |               |               |               |
-    |               |               |               |               |               |               |
-    |               | processMsg()  |               |               |               |               |
-    |               |------------------------------>|               |               |               |
-    |               |               |               |               |               |               |
-    |               |               |               | obfuscate()   |               |               |
-    |               |               |               |-------------->|               |               |
-    |               |               |               |               |               |               |
-    |               |               |               | obfuscated    |               |               |
-    |               |               |               |<--------------|               |               |
-    |               |               |               |               |               |               |
-    |               |               |               | execute()     |               |               |
-    |               |               |               |------------------------------>|               |
-    |               |               |               |               |               |               |
-    |               |               |               |               | isAvailable() |               |
-    |               |               |               |               |-------------->|               |
-    |               |               |               |               |               |               |
-    |               |               |               |               |    true       |               |
-    |               |               |               |               |<--------------|               |
-    |               |               |               |               |               |               |
-    |               |               |               |               | chat()        |               |
-    |               |               |               |               |------------------------------>|
-    |               |               |               |               |               |               |
-    |               |               |               |               |   response    |               |
-    |               |               |               |               |<------------------------------|
-    |               |               |               |               |               |               |
-    |               |               |               |               |recordSuccess()|               |
-    |               |               |               |               |-------------->|               |
-    |               |               |               |               |               |               |
-    |               |               |               | response      |               |               |
-    |               |               |               |<------------------------------|               |
-    |               |               |               |               |               |               |
-    |               |               |               | deobfuscate() |               |               |
-    |               |               |               |-------------->|               |               |
-    |               |               |               |               |               |               |
-    |               |               |               | deobfuscated  |               |               |
-    |               |               |               |<--------------|               |               |
-    |               |               |               |               |               |               |
-    |               |               |               | emit events   |               |               |
-    |               |               |               |--------------> (async)        |               |
-    |               |               |               |               |               |               |
-    |               |   response    |               |               |               |               |
-    |               |<------------------------------|               |               |               |
-    |               |               |               |               |               |               |
-    |  200 OK       |               |               |               |               |               |
-    |  {sessionId,  |               |               |               |               |               |
-    |   message}    |               |               |               |               |               |
-    |<--------------|               |               |               |               |               |
-    |               |               |               |               |               |               |
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant RateLim as Rate Limiter
+    participant ChatSvc as Chat Service
+    participant Obfusc as Obfuscator
+    participant Circuit
+    participant LLM
+
+    Client->>Route: POST /chat {message}
+    Route->>RateLim: consume(ip)
+    RateLim-->>Route: {allowed: true}
+    Route->>ChatSvc: processMsg()
+    ChatSvc->>Obfusc: obfuscate()
+    Obfusc-->>ChatSvc: obfuscated
+    ChatSvc->>Circuit: execute()
+    Circuit->>Circuit: isAvailable()
+    Circuit->>LLM: chat()
+    LLM-->>Circuit: response
+    Circuit->>Circuit: recordSuccess()
+    Circuit-->>ChatSvc: response
+    ChatSvc->>Obfusc: deobfuscate()
+    Obfusc-->>ChatSvc: deobfuscated
+    ChatSvc->>ChatSvc: emit events (async)
+    ChatSvc-->>Route: response
+    Route-->>Client: 200 OK {sessionId, message}
 ```
 
 ### Content Versioning Transaction Flow
 
-```
-                    CONTENT UPDATE WITH VERSIONING
+```mermaid
+sequenceDiagram
+    participant Admin as Admin Client
+    participant Route
+    participant Service
+    participant Repo
+    participant DB as DB (Turso)
 
-+--------+     +---------+     +---------+     +---------+     +---------+
-| Admin  |     |  Route  |     | Service |     |  Repo   |     |   DB    |
-| Client |     |         |     |         |     |         |     | (Turso) |
-+---+----+     +----+----+     +----+----+     +----+----+     +----+----+
-    |               |               |               |               |
-    | PUT /admin/   |               |               |               |
-    | content/:id   |               |               |               |
-    | + Idempotency |               |               |               |
-    |   -Key        |               |               |               |
-    |-------------->|               |               |               |
-    |               |               |               |               |
-    |               | check         |               |               |
-    |               | idempotency   |               |               |
-    |               |-------------->|               |               |
-    |               |               |               |               |
-    |               | update()      |               |               |
-    |               |-------------->|               |               |
-    |               |               |               |               |
-    |               |               | updateWithHistory()           |
-    |               |               |-------------->|               |
-    |               |               |               |               |
-    |               |               |               | BEGIN         |
-    |               |               |               | TRANSACTION   |
-    |               |               |               |-------------->|
-    |               |               |               |               |
-    |               |               |               | 1. SELECT     |
-    |               |               |               |    current    |
-    |               |               |               |    content    |
-    |               |               |               |-------------->|
-    |               |               |               |               |
-    |               |               |               |    current    |
-    |               |               |               |    row        |
-    |               |               |               |<--------------|
-    |               |               |               |               |
-    |               |               |               | 2. INSERT     |
-    |               |               |               |    INTO       |
-    |               |               |               |    content_   |
-    |               |               |               |    history    |
-    |               |               |               |-------------->|
-    |               |               |               |               |
-    |               |               |               | 3. UPDATE     |
-    |               |               |               |    content    |
-    |               |               |               |    SET data,  |
-    |               |               |               |    version++  |
-    |               |               |               |-------------->|
-    |               |               |               |               |
-    |               |               |               | COMMIT        |
-    |               |               |               |-------------->|
-    |               |               |               |               |
-    |               |               |  updated row  |               |
-    |               |               |<--------------|               |
-    |               |               |               |               |
-    |               |               | emit('content:updated')       |
-    |               |               |--------------> Event Bus      |
-    |               |               |               |               |
-    |               |  updated row  |               |               |
-    |               |<--------------|               |               |
-    |               |               |               |               |
-    |               | cache         |               |               |
-    |               | idempotency   |               |               |
-    |               | response      |               |               |
-    |               |               |               |               |
-    |  200 OK       |               |               |               |
-    |  {content}    |               |               |               |
-    |<--------------|               |               |               |
-    |               |               |               |               |
+    Admin->>Route: PUT /admin/content/:id<br/>+ Idempotency-Key
+    Route->>Route: check idempotency
+    Route->>Service: update()
+    Service->>Repo: updateWithHistory()
 
+    Repo->>DB: BEGIN TRANSACTION
+    Repo->>DB: 1. SELECT current content
+    DB-->>Repo: current row
+    Repo->>DB: 2. INSERT INTO content_history
+    Repo->>DB: 3. UPDATE content SET data, version++
+    Repo->>DB: COMMIT
 
-                         Event Handlers (Async)
-                                    |
-                    +---------------+---------------+
-                    |               |               |
-                    v               v               v
-              +---------+    +---------+    +---------+
-              | Cache   |    | Metrics |    |  Audit  |
-              |Invalidate|   | Update  |    |   Log   |
-              +---------+    +---------+    +---------+
+    Repo-->>Service: updated row
+    Service->>Service: emit('content:updated')
+    Service-->>Route: updated row
+    Route->>Route: cache idempotency response
+    Route-->>Admin: 200 OK {content}
+
+    Note over Service: Event Handlers (Async)
+    Service-->>Service: Cache Invalidate
+    Service-->>Service: Metrics Update
+    Service-->>Service: Audit Log
 ```
 
 **Transaction Details:**
@@ -620,108 +467,62 @@ async updateWithHistory(
 
 ### Content Restore Flow
 
-```
-                       RESTORE PREVIOUS VERSION
+```mermaid
+sequenceDiagram
+    participant Admin as Admin Client
+    participant Service
+    participant Repo
+    participant DB
 
-+--------+     +---------+     +---------+     +---------+
-| Admin  |     | Service |     |  Repo   |     |   DB    |
-+---+----+     +----+----+     +----+----+     +----+----+
-    |               |               |               |
-    | POST /content |               |               |
-    | /:id/restore  |               |               |
-    | {version: 3}  |               |               |
-    |-------------->|               |               |
-    |               |               |               |
-    |               | 1. Get target version         |
-    |               | from history                  |
-    |               |-------------->|               |
-    |               |               |-------------->|
-    |               |               |<--------------|
-    |               |               |               |
-    |               | 2. Call updateWithHistory()   |
-    |               |    using history.data         |
-    |               |-------------->|               |
-    |               |               |               |
-    |               |               | [transaction] |
-    |               |               | - archive     |
-    |               |               |   current     |
-    |               |               | - restore     |
-    |               |               |   old data    |
-    |               |               | - version++   |
-    |               |               |-------------->|
-    |               |               |               |
-    |               |<--------------|               |
-    |               |               |               |
-    |  200 OK       |               |               |
-    |  {restored}   |               |               |
-    |<--------------|               |               |
-    |               |               |               |
+    Admin->>Service: POST /content/:id/restore<br/>{version: 3}
 
+    Service->>Repo: 1. Get target version from history
+    Repo->>DB: SELECT * FROM content_history
+    DB-->>Repo: history row
+    Repo-->>Service: history data
 
-  Version Timeline:
+    Service->>Repo: 2. Call updateWithHistory()<br/>using history.data
+    Repo->>DB: [transaction]<br/>- archive current<br/>- restore old data<br/>- version++
+    DB-->>Repo: updated row
+    Repo-->>Service: restored content
 
-  v1        v2        v3        v4 (current)    v5 (after restore)
-   |         |         |              |               |
-   o---------o---------o--------------o---------------o
-   |         |         |              |               |
- create   update    update       update         restore v3
-                      ^                               |
-                      +-------------------------------+
-                            data copied from v3
+    Service-->>Admin: 200 OK {restored}
+
+    Note over Admin,DB: Version Timeline
+    Note over Admin,DB: v1 -> v2 -> v3 -> v4(current) -> v5(after restore)<br/>Data copied from v3 to v5
 ```
 
 ### Circuit Breaker State Transitions
 
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED
+
+    CLOSED --> OPEN : failures >= threshold
+    note right of CLOSED
+        - Allow all calls
+        - Count failures
+    end note
+
+    OPEN --> HALF_OPEN : timeout elapsed
+    note right of OPEN
+        - Reject all calls
+        - Return error
+        - Start timer
+    end note
+
+    HALF_OPEN --> CLOSED : success >= threshold
+    HALF_OPEN --> OPEN : any failure
+    note right of HALF_OPEN
+        - Allow limited calls
+        - Test if healthy
+    end note
 ```
-                       CIRCUIT BREAKER STATE MACHINE
 
-                              +---------------------+
-                              |                     |
-                              |       CLOSED        |<------------------------+
-                              |                     |                         |
-                              |  - Allow all calls  |                         |
-                              |  - Count failures   |                         |
-                              |                     |                         |
-                              +----------+----------+                         |
-                                         |                                    |
-                                         | failures >= threshold              |
-                                         |                                    |
-                                         v                                    |
-                              +---------------------+                         |
-                              |                     |                         |
-                              |        OPEN         |                         |
-                              |                     |                         |
-                              |  - Reject all calls |                         |
-                              |  - Return error     |                         |
-                              |  - Start timer      |                         |
-                              |                     |                         |
-                              +----------+----------+                         |
-                                         |                                    |
-                                         | timeout elapsed                    |
-                                         |                                    |
-                                         v                                    |
-                              +---------------------+                         |
-                              |                     |                         |
-                              |     HALF_OPEN       |-------------------------+
-                              |                     |      success >= threshold
-                              |  - Allow limited    |
-                              |  - Test if healthy  |
-                              |                     |
-                              +----------+----------+
-                                         |
-                                         | any failure
-                                         |
-                                         v
-                              +---------------------+
-                              |        OPEN         |
-                              +---------------------+
-
-
-Configuration:
-  - failureThreshold: 5       (failures before opening)
-  - resetTimeout: 30000ms     (time before trying half-open)
-  - halfOpenMaxAttempts: 2    (successes needed to close)
-```
+**Configuration:**
+- `failureThreshold`: 5 (failures before opening)
+- `resetTimeout`: 30000ms (time before trying half-open)
+- `halfOpenMaxAttempts`: 2 (successes needed to close)
 
 ## Error Handling
 
@@ -933,21 +734,16 @@ export class ChatService {
 
 ### Test Pyramid
 
-```
-                    +-------------+
-                    |    E2E      |  Few, slow, high confidence
-                    |   Tests     |  (~5% of tests)
-                    +------+------+
-                           |
-                    +------+------+
-                    | Integration |  Some, moderate speed
-                    |   Tests     |  (~25% of tests)
-                    +------+------+
-                           |
-              +------------+------------+
-              |       Unit Tests        |  Many, fast, isolated
-              |                         |  (~70% of tests)
-              +-------------------------+
+```mermaid
+flowchart TB
+    subgraph Pyramid["Test Pyramid"]
+        E2E["E2E Tests<br/>Few, slow, high confidence<br/>(~5% of tests)"]
+        Integration["Integration Tests<br/>Some, moderate speed<br/>(~25% of tests)"]
+        Unit["Unit Tests<br/>Many, fast, isolated<br/>(~70% of tests)"]
+    end
+
+    E2E --> Integration
+    Integration --> Unit
 ```
 
 ### Coverage Targets
@@ -969,19 +765,19 @@ export class ChatService {
 
 ### Database Testing Strategy
 
-```
-                         DATABASE TEST STRATEGY
+```mermaid
+flowchart LR
+    subgraph Unit["Unit Tests"]
+        MockedRepos["Mocked Repos<br/>No real DB<br/>Fast, isolated"]
+    end
 
-  Unit Tests                Integration Tests              E2E Tests
-       |                           |                            |
-       v                           v                            v
-  +---------+               +-------------+              +-------------+
-  |  Mocked |               | In-Memory   |              | Test Turso  |
-  |  Repos  |               |   SQLite    |              |  Database   |
-  +---------+               +-------------+              +-------------+
-       |                           |                            |
-  No real DB               libsql :memory:               Separate DB
-  Fast, isolated           Real SQL, fast                Full fidelity
+    subgraph Integration["Integration Tests"]
+        InMemory["In-Memory SQLite<br/>libsql :memory:<br/>Real SQL, fast"]
+    end
+
+    subgraph E2E["E2E Tests"]
+        TestDB["Test Turso Database<br/>Separate DB<br/>Full fidelity"]
+    end
 ```
 
 > See `tests/` directory for implementation examples including mocks, fixtures, and test utilities.

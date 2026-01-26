@@ -18,48 +18,46 @@ The portfolio backend exposes a **Model Context Protocol (MCP)** server, enablin
 
 Model Context Protocol is an open standard for connecting AI assistants to external data sources and tools. Instead of copy-pasting content into chat, MCP allows AI to directly query structured data.
 
-```
-+------------------+         +------------------+         +------------------+
-|  Claude Desktop  |<--MCP-->|  MCP Server      |<------->|  Portfolio DB    |
-|  or other AI     |         |  (stdio/SSE)     |         |                  |
-+------------------+         +------------------+         +------------------+
+```mermaid
+flowchart LR
+    Claude["Claude Desktop<br/>or other AI"] <-->|MCP| Server["MCP Server<br/>(stdio/SSE)"]
+    Server <--> DB[(Portfolio DB)]
 ```
 
 ## Architecture
 
 The MCP server runs as a separate process or can be embedded in the main Express application:
 
-```
-+------------------------------------------------------------------+
-|                        MCP Server                                 |
-|                                                                   |
-|  +--------------+  +--------------+  +--------------------------+ |
-|  |   Tools      |  |  Resources   |  |      Prompts             | |
-|  |  (Generic)   |  |  (Generic)   |  |   (Specialized)          | |
-|  |              |  |              |  |                          | |
-|  | list_content |  | portfolio:// |  | summarize_portfolio      | |
-|  | get_content  |  |   content    |  | explain_project          | |
-|  | search_      |  |   content/   |  | compare_skills           | |
-|  |   content    |  |    {type}    |  |                          | |
-|  | create_      |  |   content/   |  |                          | |
-|  |   content    |  |  {type}/     |  |                          | |
-|  | update_      |  |   {slug}     |  |                          | |
-|  |   content    |  |              |  |                          | |
-|  | delete_      |  |              |  |                          | |
-|  |   content    |  |              |  |                          | |
-|  +--------------+  +--------------+  +--------------------------+ |
-|                            |                                      |
-|                            v                                      |
-|                 +---------------------+                           |
-|                 | Content Repository  |                           |
-|                 |   (shared with API) |                           |
-|                 +---------------------+                           |
-|                            |                                      |
-+----------------------------+--------------------------------------+
-                             v
-                    +------------------+
-                    |   Turso DB       |
-                    +------------------+
+```mermaid
+flowchart TB
+    subgraph MCPServer["MCP Server"]
+        subgraph Tools["Tools (Generic)"]
+            T1["list_content"]
+            T2["get_content"]
+            T3["search_content"]
+            T4["create_content"]
+            T5["update_content"]
+            T6["delete_content"]
+        end
+
+        subgraph Resources["Resources (Generic)"]
+            R1["portfolio://content"]
+            R2["portfolio://content/{type}"]
+            R3["portfolio://content/{type}/{slug}"]
+        end
+
+        subgraph Prompts["Prompts (Specialized)"]
+            P1["summarize_portfolio"]
+            P2["explain_project"]
+            P3["compare_skills"]
+        end
+
+        ContentRepo["Content Repository<br/>(shared with API)"]
+    end
+
+    Tools --> ContentRepo
+    Resources --> ContentRepo
+    ContentRepo --> DB[(Turso DB)]
 ```
 
 ## Content Types
@@ -466,34 +464,19 @@ interface SiteConfigData {
 
 The MCP server shares the same data layer as the REST API:
 
-```
-+------------------------------------------------------------------+
-|                      Application                                  |
-|                                                                   |
-|  +------------------+              +------------------+           |
-|  |   REST API       |              |   MCP Server     |           |
-|  |   (Express)      |              |   (MCP SDK)      |           |
-|  +--------+---------+              +--------+---------+           |
-|           |                                 |                     |
-|           +----------------+----------------+                     |
-|                            v                                      |
-|                 +---------------------+                           |
-|                 | Content Repository  |                           |
-|                 |                     |                           |
-|                 | - findAll()         |                           |
-|                 | - findBySlug()      |                           |
-|                 | - findPublished()   |                           |
-|                 | - create()          |                           |
-|                 | - updateWithHistory()|                          |
-|                 | - delete()          |                           |
-|                 +----------+----------+                           |
-|                            |                                      |
-|                            v                                      |
-|                 +---------------------+                           |
-|                 |     Turso DB        |                           |
-|                 +---------------------+                           |
-|                                                                   |
-+-------------------------------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph App["Application"]
+        REST["REST API<br/>(Express)"]
+        MCP["MCP Server<br/>(MCP SDK)"]
+
+        REST --> Repo
+        MCP --> Repo
+
+        Repo["Content Repository<br/>findAll()<br/>findBySlug()<br/>findPublished()<br/>create()<br/>updateWithHistory()<br/>delete()"]
+    end
+
+    Repo --> DB[(Turso DB)]
 ```
 
 This ensures:
@@ -506,26 +489,19 @@ This ensures:
 
 The MCP server shares tool implementations with the chat service:
 
-```
-+------------------------------------------------------------------+
-|                        Shared Tools Layer                         |
-|                        (src/tools/core/)                          |
-|                                                                   |
-|  +---------------+  +---------------+  +------------------+       |
-|  | listContent() |  | getContent()  |  | searchContent()  |       |
-|  +-------+-------+  +-------+-------+  +--------+---------+       |
-|          |                  |                   |                 |
-+----------+------------------+-------------------+-----------------+
-           |                  |                   |
-           v                  v                   v
-+---------------------+              +---------------------+
-|    MCP Server       |              |    Chat Service     |
-|                     |              |                     |
-| - MCP SDK           |              | - OpenAI API        |
-| - server.tool()     |              | - function calling  |
-| - MCP response      |              | - JSON response     |
-|   format            |              |   format            |
-+---------------------+              +---------------------+
+```mermaid
+flowchart TB
+    subgraph SharedTools["Shared Tools Layer<br/>(src/tools/core/)"]
+        List["listContent()"]
+        Get["getContent()"]
+        Search["searchContent()"]
+    end
+
+    MCP["MCP Server<br/>- MCP SDK<br/>- server.tool()<br/>- MCP response format"]
+    Chat["Chat Service<br/>- OpenAI API<br/>- function calling<br/>- JSON response format"]
+
+    SharedTools --> MCP
+    SharedTools --> Chat
 ```
 
 **How it works:**

@@ -39,37 +39,27 @@ A TypeScript/Express backend serving a personal portfolio website with:
 
 ### C4 Level 1: System Context Diagram
 
-```
-                              SYSTEM CONTEXT
+```mermaid
+C4Context
+    title System Context Diagram - Portfolio Backend
 
-    +--------------+         +--------------+         +--------------+
-    |   Portfolio  |         |    Admin     |         |  AI Tools    |
-    |   Visitor    |         |    User      |         | (Claude etc) |
-    |   [Person]   |         |   [Person]   |         |   [System]   |
-    +------+-------+         +------+-------+         +------+-------+
-           |                        |                        |
-           | Views portfolio        | Manages content        | Uses MCP
-           | Chats with AI          | Views analytics        | tools
-           |                        |                        |
-           v                        v                        v
-    +-------------------------------------------------------------+
-    |                                                             |
-    |                    PORTFOLIO BACKEND                        |
-    |                       [System]                              |
-    |                                                             |
-    |  Serves portfolio content, handles AI chat, provides        |
-    |  MCP tools for AI integration                               |
-    |                                                             |
-    +---------------------------+---------------------------------+
-                                |
-           +--------------------+--------------------+
-           |                    |                    |
-           v                    v                    v
-    +--------------+     +--------------+     +--------------+
-    |    Turso     |     |    Redis     |     |  LLM API     |
-    |  (Database)  |     |   (Cache)    |     |  (OpenAI)    |
-    |  [External]  |     |  [External]  |     |  [External]  |
-    +--------------+     +--------------+     +--------------+
+    Person(visitor, "Portfolio Visitor", "Views portfolio and chats with AI")
+    Person(admin, "Admin User", "Manages content and views analytics")
+    System_Ext(aiTools, "AI Tools", "Claude Desktop, other MCP clients")
+
+    System(backend, "Portfolio Backend", "Serves portfolio content, handles AI chat, provides MCP tools")
+
+    System_Ext(turso, "Turso", "Edge-replicated SQLite database")
+    System_Ext(redis, "Redis", "Cache and rate limiting state")
+    System_Ext(llm, "LLM API", "OpenAI-compatible API")
+
+    Rel(visitor, backend, "Views portfolio, Chats with AI")
+    Rel(admin, backend, "Manages content, Views analytics")
+    Rel(aiTools, backend, "Uses MCP tools")
+
+    Rel(backend, turso, "Stores data")
+    Rel(backend, redis, "Caches data")
+    Rel(backend, llm, "AI responses")
 ```
 
 ### External Systems
@@ -93,57 +83,33 @@ A TypeScript/Express backend serving a personal portfolio website with:
 
 ### C4 Level 2: Container Diagram
 
-```
-                           PORTFOLIO BACKEND
+```mermaid
+C4Container
+    title Container Diagram - Portfolio Backend
 
-  +---------------------------------------------------------------------+
-  |                         Express Application                          |
-  |                                                                      |
-  |   +-------------+  +-------------+  +-------------+                  |
-  |   |   Public    |  |   Admin     |  |   Health    |                  |
-  |   |   Routes    |  |   Routes    |  |   Routes    |                  |
-  |   | /api/v1/*   |  | /api/v1/    |  | /api/health |                  |
-  |   |             |  |   admin/*   |  | /api/metrics|                  |
-  |   +------+------+  +------+------+  +-------------+                  |
-  |          |                |                                          |
-  |          v                v                                          |
-  |   +-------------------------------------------------------------+    |
-  |   |                   Middleware Stack                           |    |
-  |   |  Security -> Context -> Logger -> Rate Limit -> Idempotency  |    |
-  |   +-------------------------------------------------------------+    |
-  |                              |                                       |
-  |          +-------------------+-------------------+                   |
-  |          v                   v                   v                   |
-  |   +-------------+     +-------------+     +-------------+            |
-  |   |  Content    |     |    Chat     |     |Obfuscation  |            |
-  |   |  Service    |     |  Service    |     |  Service    |            |
-  |   +------+------+     +------+------+     +-------------+            |
-  |          |                   |                                       |
-  |          v                   v                                       |
-  |   +-------------+     +-------------+     +-------------+            |
-  |   |  Content    |     |    Chat     |     |    LLM      |            |
-  |   | Repository  |     | Repository  |     |  Provider   |            |
-  |   +------+------+     +------+------+     +------+------+            |
-  |          |                   |                   |                   |
-  +----------+-------------------+-------------------+-------------------+
-             |                   |                   |
-  +----------+-------------------+-------------------+-------------------+
-  |          v                   v                   v                   |
-  |   +-------------------------------------------------------------+    |
-  |   |                   Infrastructure                             |    |
-  |   |                                                              |    |
-  |   |  +---------+  +---------+  +---------+  +---------+          |    |
-  |   |  |  Cache  |  | Circuit |  |  Rate   |  |  Event  |          |    |
-  |   |  | Provider|  | Breaker |  | Limiter |  |   Bus   |          |    |
-  |   |  +---------+  +---------+  +---------+  +---------+          |    |
-  |   +-------------------------------------------------------------+    |
-  +----------------------------------------------------------------------+
-             |              |              |              |
-             v              v              v              v
-        +---------+   +---------+   +---------+   +---------+
-        |  Turso  |   |  Redis  |   | LLM API |   |  OTLP   |
-        |   DB    |   |  Cache  |   |         |   |Collector|
-        +---------+   +---------+   +---------+   +---------+
+    Person(client, "Client", "Browser or API consumer")
+
+    Container_Boundary(app, "Express Application") {
+        Container(routes, "Routes Layer", "Express", "Public, Admin, Health routes")
+        Container(middleware, "Middleware Stack", "Express", "Security, Context, Logger, Rate Limit, Idempotency")
+        Container(services, "Services Layer", "TypeScript", "ContentService, ChatService, ObfuscationService")
+        Container(repos, "Repositories", "Drizzle ORM", "ContentRepository, ChatRepository")
+        Container(infra, "Infrastructure", "TypeScript", "Cache, Circuit Breaker, Rate Limiter, Event Bus")
+    }
+
+    System_Ext(turso, "Turso DB", "Database")
+    System_Ext(redis, "Redis Cache", "Cache")
+    System_Ext(llm, "LLM API", "AI Provider")
+    System_Ext(otlp, "OTLP Collector", "Observability")
+
+    Rel(client, routes, "HTTP requests")
+    Rel(routes, middleware, "Processes through")
+    Rel(middleware, services, "Calls")
+    Rel(services, repos, "Data access")
+    Rel(repos, turso, "Queries")
+    Rel(infra, redis, "Cache ops")
+    Rel(services, llm, "Chat requests")
+    Rel(infra, otlp, "Traces")
 ```
 
 ### Container Responsibilities
@@ -164,142 +130,85 @@ For detailed rationale on architectural decisions, see the [Architecture Decisio
 
 ### Content Read Flow
 
-```
-+--------+     +---------+     +---------+     +---------+     +---------+
-| Client |---->|  Route  |---->| Service |---->|  Cache  |---->|  Repo   |
-+--------+     +---------+     +---------+     +---------+     +---------+
-                                                    |               |
-                                              cache hit?            |
-                                                    |               |
-                                              +-----+-----+         |
-                                              |           |         |
-                                            Yes          No         |
-                                              |           |         |
-                                              v           v         v
-                                         +---------+  +---------+  +---------+
-                                         | Return  |  |  Query  |  |  Turso  |
-                                         | Cached  |  |   DB    |--|   DB    |
-                                         +---------+  +----+----+  +---------+
-                                                           |
-                                                           v
-                                                      +---------+
-                                                      |  Cache  |
-                                                      |  Store  |
-                                                      +---------+
+```mermaid
+flowchart LR
+    Client([Client]) --> Route[Route]
+    Route --> Service[Service]
+    Service --> Cache{Cache}
+    Cache -->|Hit| Return[Return Cached]
+    Cache -->|Miss| Repo[Repository]
+    Repo --> DB[(Turso DB)]
+    DB --> Repo
+    Repo --> Store[Cache Store]
+    Store --> Return2[Return Data]
 ```
 
 ### Chat Message Flow
 
-```
-  +----------+
-  |  Client  |
-  +----+-----+
-       | POST /api/v1/chat
-       v
-  +----------+
-  |  Rate    |<---- Check token bucket
-  |  Limit   |----> Reject if empty (429)
-  +----+-----+
-       | Pass
-       v
-  +----------+
-  |  Chat    |
-  |  Route   |
-  +----+-----+
-       |
-       v
-  +----------+
-  |  Chat    |
-  | Service  |
-  +----+-----+
-       |
-       +----------------------+
-       v                      v
-  +----------+          +----------+
-  | Get/Create|          |Obfuscate |
-  | Session  |          | Message  |
-  +----+-----+          +----+-----+
-       |                     |
-       |                     v
-       |               +----------+
-       |               |  Build   |
-       |               | Messages |
-       |               +----+-----+
-       |                    |
-       |                    v
-       |               +----------+
-       |               | Circuit  |<---- Check breaker state
-       |               | Breaker  |----> Reject if open (502)
-       |               +----+-----+
-       |                    | Pass
-       |                    v
-       |               +----------+
-       |               |   LLM    |
-       |               |   Call   |----> OpenAI API
-       |               +----+-----+
-       |                    |
-       |                    v
-       |               +----------+
-       |               |Deobfuscate|
-       |               | Response |
-       |               +----+-----+
-       |                    |
-       +<-------------------+
-       |
-       v
-  +----------+
-  |  Store   |
-  | Messages |----> DB (obfuscated)
-  +----+-----+
-       |
-       v
-  +----------+
-  |  Emit    |----> chat:message_sent
-  |  Events  |
-  +----+-----+
-       |
-       v
-  +----------+
-  | Response |----> Client
-  +----------+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant RateLimit as Rate Limiter
+    participant ChatRoute as Chat Route
+    participant ChatSvc as Chat Service
+    participant Obfuscate as Obfuscator
+    participant Circuit as Circuit Breaker
+    participant LLM
+
+    Client->>RateLimit: POST /api/v1/chat
+    alt Token bucket empty
+        RateLimit-->>Client: 429 Too Many Requests
+    else Allowed
+        RateLimit->>ChatRoute: Pass
+        ChatRoute->>ChatSvc: processMessage()
+        ChatSvc->>Obfuscate: obfuscate(message)
+        Obfuscate-->>ChatSvc: obfuscated message
+        ChatSvc->>Circuit: execute()
+        alt Breaker open
+            Circuit-->>Client: 502 Service Unavailable
+        else Breaker closed
+            Circuit->>LLM: chat()
+            LLM-->>Circuit: response
+            Circuit-->>ChatSvc: response
+        end
+        ChatSvc->>Obfuscate: deobfuscate(response)
+        Obfuscate-->>ChatSvc: clean response
+        ChatSvc->>ChatSvc: store messages (obfuscated)
+        ChatSvc->>ChatSvc: emit events
+        ChatSvc-->>Client: 200 OK {sessionId, message}
+    end
 ```
 
 ### Chat Message Flow with Tools
 
 The chat service uses OpenAI function calling to query portfolio data:
 
-```
-+----------+     +------------+     +----------+     +----------+     +----------+
-|  Client  |---->|    Chat    |---->|   LLM    |---->|   Tool   |---->| Content  |
-|          |     |  Service   |     | (OpenAI) |     | Executor |     |   Repo   |
-+----------+     +-----+------+     +----+-----+     +----+-----+     +----+-----+
-                       |                 |               |               |
-                       |   messages +    |               |               |
-                       |   tools         |               |               |
-                       |---------------->|               |               |
-                       |                 |               |               |
-                       |    tool_call    |               |               |
-                       |<----------------|               |               |
-                       |                 |               |               |
-                       | executeToolCall |               |               |
-                       |-------------------------------->|               |
-                       |                 |               |               |
-                       |                 |               | query         |
-                       |                 |               |-------------->|
-                       |                 |               |               |
-                       |                 |               |    results    |
-                       |                 |               |<--------------|
-                       |                 |               |               |
-                       |    tool_result  |               |               |
-                       |<--------------------------------|               |
-                       |                 |               |               |
-                       | messages +      |               |               |
-                       | tool_result     |               |               |
-                       |---------------->|               |               |
-                       |                 |               |               |
-                       |   final response|               |               |
-                       |<----------------|               |               |
-                       |                 |               |               |
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ChatSvc as Chat Service
+    participant LLM as LLM (OpenAI)
+    participant Tools as Tool Executor
+    participant Repo as Content Repo
+
+    Client->>ChatSvc: message
+    ChatSvc->>LLM: messages + tools
+    LLM-->>ChatSvc: tool_call
+
+    loop Up to 5 iterations
+        ChatSvc->>Tools: executeToolCall
+        Tools->>Repo: query
+        Repo-->>Tools: results
+        Tools-->>ChatSvc: tool_result
+        ChatSvc->>LLM: messages + tool_result
+        alt LLM needs more data
+            LLM-->>ChatSvc: another tool_call
+        else LLM has enough context
+            LLM-->>ChatSvc: final response
+        end
+    end
+
+    ChatSvc-->>Client: response
 ```
 
 **Key components:**
@@ -355,36 +264,17 @@ The chat service uses OpenAI function calling to query portfolio data:
 
 ### Authentication & Authorization
 
-```
-                    +-------------------------------------+
-                    |            Request                   |
-                    +-----------------+-------------------+
-                                      |
-                                      v
-                    +-------------------------------------+
-                    |         Is Admin Route?             |
-                    |         /api/v1/admin/*             |
-                    +-----------------+-------------------+
-                                      |
-                         +------------+------------+
-                         |                         |
-                        Yes                        No
-                         |                         |
-                         v                         v
-                    +-------------+          +-------------+
-                    |   Check     |          |   Public    |
-                    | X-Admin-Key |          |   Access    |
-                    +------+------+          +-------------+
-                           |
-                  +--------+--------+
-                  |                 |
-               Valid            Invalid
-                  |                 |
-                  v                 v
-             +---------+      +---------+
-             | Process |      |  401    |
-             | Request |      | Reject  |
-             +---------+      +---------+
+```mermaid
+flowchart TD
+    Request([Request]) --> IsAdmin{Is Admin Route?<br/>/api/v1/admin/*}
+
+    IsAdmin -->|Yes| CheckKey{Check<br/>X-Admin-Key}
+    IsAdmin -->|No| Public[Public Access]
+
+    CheckKey -->|Valid| Process[Process Request]
+    CheckKey -->|Invalid| Reject[401 Reject]
+
+    Public --> Process
 ```
 
 ### Data Protection
@@ -400,41 +290,18 @@ The chat service uses OpenAI function calling to query portfolio data:
 
 ### Container Deployment
 
-```
-+-------------------------------------------------------------------------+
-|                              DOCKER HOST                                 |
-|                                                                          |
-|   +------------------------------------------------------------------+   |
-|   |                        docker-compose                             |   |
-|   |                                                                   |   |
-|   |   +-------------------------+      +-------------------------+    |   |
-|   |   |     portfolio-api       |      |        redis            |    |   |
-|   |   |                         |      |                         |    |   |
-|   |   |   +-----------------+   |      |   +-----------------+   |    |   |
-|   |   |   |   Node.js App   |   |<---->|   |   Redis 7       |   |    |   |
-|   |   |   |   Port 3000     |   |      |   |   Port 6379     |   |    |   |
-|   |   |   +-----------------+   |      |   +-----------------+   |    |   |
-|   |   |                         |      |                         |    |   |
-|   |   |   Memory: 512MB         |      |   Memory: 128MB         |    |   |
-|   |   |   CPU: 1 core           |      |   Persistence: AOF      |    |   |
-|   |   +------------+------------+      +-------------------------+    |   |
-|   |                |                                                  |   |
-|   +----------------+--------------------------------------------------+   |
-|                    |                                                      |
-+--------------------+------------------------------------------------------+
-                     |
-                     | Port 3000
-                     v
-             +---------------+
-             |  Reverse Proxy |
-             |  (Nginx/Caddy) |
-             +---------------+
-                     |
-                     | HTTPS :443
-                     v
-             +---------------+
-             |   Internet    |
-             +---------------+
+```mermaid
+flowchart TB
+    subgraph Docker["Docker Host"]
+        subgraph Compose["docker-compose"]
+            API["portfolio-api<br/>Node.js App<br/>Port 3000<br/>Memory: 512MB"]
+            Redis["redis<br/>Redis 7<br/>Port 6379<br/>Memory: 128MB"]
+        end
+        API <--> Redis
+    end
+
+    Docker --> Proxy["Reverse Proxy<br/>(Nginx/Caddy)"]
+    Proxy --> Internet["Internet<br/>HTTPS :443"]
 ```
 
 ### Health Checks
@@ -449,34 +316,21 @@ The chat service uses OpenAI function calling to query portfolio data:
 
 ### Three Pillars
 
-```
-                           OBSERVABILITY STACK
+```mermaid
+flowchart TB
+    subgraph App["Application"]
+        Pino["Pino Logger"]
+        Prom["Prometheus Client"]
+        OTEL["OpenTelemetry SDK"]
+    end
 
-     LOGS                      METRICS                    TRACES
-       |                          |                          |
-       v                          v                          v
-  +---------+              +---------+              +---------+
-  |  Pino   |              | Prom-   |              |  OTEL   |
-  | Logger  |              | Client  |              |   SDK   |
-  +----+----+              +----+----+              +----+----+
-       |                        |                        |
-       | JSON                   | /metrics               | OTLP
-       | stdout                 | scrape                 | export
-       |                        |                        |
-       v                        v                        v
-  +---------+              +---------+              +---------+
-  |  Log    |              |Prometheus|             |  Tempo  |
-  |Aggregator|             |         |              | /Jaeger |
-  |(Loki)   |              +----+----+              +----+----+
-  +----+----+                   |                        |
-       |                        |                        |
-       +------------------------+------------------------+
-                                |
-                                v
-                          +---------+
-                          | Grafana |
-                          |Dashboard|
-                          +---------+
+    Pino -->|JSON stdout| Loki["Log Aggregator<br/>(Loki)"]
+    Prom -->|/metrics scrape| Prometheus["Prometheus"]
+    OTEL -->|OTLP export| Tempo["Tempo/Jaeger"]
+
+    Loki --> Grafana["Grafana Dashboard"]
+    Prometheus --> Grafana
+    Tempo --> Grafana
 ```
 
 ### Key Metrics

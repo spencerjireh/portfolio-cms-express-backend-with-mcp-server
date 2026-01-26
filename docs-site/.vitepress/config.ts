@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: 'Portfolio Backend',
   description: 'Architecture and API documentation for the Portfolio Backend',
   base: '/portfolio-cms-express-backend-with-mcp-server/',
@@ -128,5 +129,22 @@ export default defineConfig({
       message: 'Released under the MIT License.',
       copyright: 'Copyright 2026'
     }
+  },
+
+  mermaid: {
+    theme: 'neutral',
+    themeVariables: {
+      primaryColor: '#445566',
+      primaryTextColor: '#1a1a2e',
+      primaryBorderColor: '#667788',
+      lineColor: '#667788',
+      secondaryColor: '#f5f5f5',
+      tertiaryColor: '#e8e8e8',
+      fontFamily: 'Inter, system-ui, sans-serif'
+    }
+  },
+
+  mermaidPlugin: {
+    class: 'mermaid'
   }
-})
+}))
