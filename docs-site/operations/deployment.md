@@ -268,7 +268,6 @@ LLM_API_KEY=sk-...
 # Server
 PORT=3000
 NODE_ENV=production
-LOG_LEVEL=info
 
 # CORS
 CORS_ORIGINS=https://yoursite.com
@@ -276,7 +275,8 @@ CORS_ORIGINS=https://yoursite.com
 # Cache
 REDIS_URL=redis://localhost:6379
 
-# Observability
+# Observability (OTEL_EXPORTER_* are read by the OpenTelemetry SDK)
+OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318
 ```
 

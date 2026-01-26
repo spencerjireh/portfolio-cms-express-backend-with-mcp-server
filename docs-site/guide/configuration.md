@@ -22,23 +22,19 @@ The Portfolio Backend is configured via environment variables. This page documen
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3000` | HTTP server port |
-| `HOST` | `0.0.0.0` | HTTP server host |
 | `NODE_ENV` | `development` | Environment (`development`, `production`, `test`) |
-| `LOG_LEVEL` | `info` | Logging level (`debug`, `info`, `warn`, `error`) |
 
 ### CORS
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CORS_ORIGINS` | `*` | Comma-separated list of allowed origins |
+| `CORS_ORIGINS` | `''` | Comma-separated list of allowed origins |
 
 ### Caching
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `REDIS_URL` | - | Redis connection URL (optional) |
-| `CACHE_TTL_CONTENT` | `300` | Content cache TTL in seconds |
-| `CACHE_TTL_BUNDLE` | `300` | Bundle cache TTL in seconds |
 
 ::: tip
 If `REDIS_URL` is not set, the application falls back to in-memory caching. This works fine for single-instance deployments.
@@ -50,33 +46,34 @@ If `REDIS_URL` is not set, the application falls back to in-memory caching. This
 |----------|---------|-------------|
 | `RATE_LIMIT_CAPACITY` | `5` | Token bucket capacity |
 | `RATE_LIMIT_REFILL_RATE` | `0.333` | Tokens per second |
-| `RATE_LIMIT_WHITELIST` | - | Comma-separated IPs to skip limiting |
 
 ### LLM Provider
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `LLM_PROVIDER` | `openai` | LLM provider (currently only `openai` supported) |
 | `LLM_API_KEY` | - | LLM provider API key |
-| `LLM_BASE_URL` | `https://api.openai.com/v1` | LLM API base URL |
 | `LLM_MODEL` | `gpt-4o-mini` | Model to use for chat |
-| `LLM_TIMEOUT` | `30000` | Request timeout in ms |
 | `LLM_MAX_TOKENS` | `500` | Maximum response tokens |
-
-### Circuit Breaker
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CIRCUIT_FAILURE_THRESHOLD` | `5` | Failures before opening |
-| `CIRCUIT_RESET_TIMEOUT` | `30000` | Time before half-open (ms) |
-| `CIRCUIT_HALF_OPEN_ATTEMPTS` | `2` | Successes needed to close |
+| `LLM_TEMPERATURE` | `0.7` | Response temperature (0-1) |
 
 ### Observability
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | - | OTLP collector endpoint |
-| `OTEL_SERVICE_NAME` | `portfolio-backend` | Service name for traces |
-| `OTEL_SAMPLE_RATE` | `0.1` | Trace sampling rate (0-1) |
+| `OTEL_ENABLED` | `false` | Enable OpenTelemetry tracing (app-level gate) |
+
+::: tip OpenTelemetry SDK Variables
+When `OTEL_ENABLED=true`, the OpenTelemetry SDK reads these standard environment variables directly. They are not validated by our application but are required for trace export.
+:::
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | - | OTLP collector endpoint (e.g., `http://localhost:4318`) |
+| `OTEL_EXPORTER_OTLP_HEADERS` | - | Headers for OTLP exporter (e.g., `Authorization=Bearer token`) |
+| `OTEL_SERVICE_NAME` | `portfolio-backend` | Service name in traces (hardcoded, but SDK allows override) |
+
+See [OpenTelemetry Environment Variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) for the full list of SDK configuration options.
 
 ## Example `.env` File
 
@@ -89,28 +86,27 @@ ADMIN_API_KEY=super-secure-random-key-here
 # Server
 PORT=3000
 NODE_ENV=production
-LOG_LEVEL=info
 
 # CORS
 CORS_ORIGINS=https://myportfolio.com,https://www.myportfolio.com
 
-# Caching
+# Caching (optional - falls back to in-memory)
 REDIS_URL=redis://localhost:6379
-CACHE_TTL_CONTENT=300
 
 # Rate Limiting
 RATE_LIMIT_CAPACITY=5
 RATE_LIMIT_REFILL_RATE=0.333
 
 # LLM
+LLM_PROVIDER=openai
 LLM_API_KEY=sk-...
-LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
 LLM_MAX_TOKENS=500
+LLM_TEMPERATURE=0.7
 
 # Observability
+OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-OTEL_SAMPLE_RATE=0.1
 ```
 
 ## Configuration by Environment
@@ -119,23 +115,22 @@ OTEL_SAMPLE_RATE=0.1
 
 ```bash
 NODE_ENV=development
-LOG_LEVEL=debug
-OTEL_SAMPLE_RATE=1.0  # Trace everything
+OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 ```
 
 ### Production
 
 ```bash
 NODE_ENV=production
-LOG_LEVEL=info
-OTEL_SAMPLE_RATE=0.1  # Sample 10%
+OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=https://your-collector.example.com:4318
 ```
 
 ### Testing
 
 ```bash
 NODE_ENV=test
-LOG_LEVEL=error
 TURSO_DATABASE_URL=file:test.db  # Use local SQLite
 ```
 

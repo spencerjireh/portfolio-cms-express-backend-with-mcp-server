@@ -364,11 +364,6 @@ POST /api/v1/admin/content/:id/restore
 Body: { "version": 3 }
 ```
 
-**Compare versions:**
-```
-GET /api/v1/admin/content/:id/diff?from=2&to=5
-```
-
 ## Validation Summary
 
 | Type | Slug | Required Fields | Optional Fields |

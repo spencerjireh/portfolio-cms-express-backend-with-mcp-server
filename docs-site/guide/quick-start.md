@@ -72,7 +72,6 @@ ADMIN_API_KEY=your-secure-key
 
 # Optional: LLM Provider
 LLM_API_KEY=your-openai-key
-LLM_BASE_URL=https://api.openai.com/v1
 
 # Optional: Redis
 REDIS_URL=redis://localhost:6379
@@ -113,10 +112,9 @@ Expected response:
 
 ```json
 {
-  "status": "ok",
+  "status": "ready",
   "checks": {
-    "database": { "status": "ok" },
-    "cache": { "status": "ok", "type": "memory" }
+    "database": "ok"
   }
 }
 ```

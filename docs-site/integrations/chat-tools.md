@@ -190,8 +190,10 @@ Use these tools to provide accurate, up-to-date information about Spencer's back
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key for LLM calls | Required |
-| `OPENAI_MODEL` | Model to use (e.g., `gpt-4o`) | `gpt-4o-mini` |
+| `LLM_API_KEY` | LLM provider API key | Required |
+| `LLM_MODEL` | Model to use | `gpt-4o-mini` |
+| `LLM_MAX_TOKENS` | Maximum response tokens | `500` |
+| `LLM_TEMPERATURE` | Response temperature | `0.7` |
 
 ### Constants
 

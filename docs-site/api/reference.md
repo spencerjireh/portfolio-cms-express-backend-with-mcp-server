@@ -50,8 +50,6 @@ The full OpenAPI 3.0 specification is available at:
 | DELETE | `/api/v1/admin/content/:id` | Delete content |
 | GET | `/api/v1/admin/content/:id/history` | Get version history |
 | POST | `/api/v1/admin/content/:id/restore` | Restore to previous version |
-| GET | `/api/v1/admin/content/:id/diff` | Compare versions |
-| GET | `/api/v1/admin/export` | Export all content |
 
 ### Admin Chat
 
@@ -308,18 +306,18 @@ Check if the service is ready to accept traffic.
 {
   "status": "ready",
   "checks": {
-    "database": {
-      "status": "connected",
-      "latency": 12
-    },
-    "cache": {
-      "status": "connected",
-      "type": "redis"
-    },
-    "llm": {
-      "status": "available",
-      "circuitBreaker": "closed"
-    }
+    "database": "ok"
+  }
+}
+```
+
+When degraded:
+
+```json
+{
+  "status": "degraded",
+  "checks": {
+    "database": "error"
   }
 }
 ```

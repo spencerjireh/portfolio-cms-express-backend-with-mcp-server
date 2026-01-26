@@ -24,16 +24,22 @@ This runbook covers common operational scenarios, troubleshooting procedures, an
 # Quick check
 curl -s https://api.yoursite.com/api/health | jq
 
-# Detailed readiness (includes DB and cache status)
+# Detailed readiness (includes DB status)
 curl -s https://api.yoursite.com/api/health/ready | jq
 
 # Expected ready response
 {
-  "status": "ok",
+  "status": "ready",
   "checks": {
-    "database": { "status": "ok", "latency": 12 },
-    "cache": { "status": "ok", "type": "redis" },
-    "llm": { "status": "ok", "circuitBreaker": "closed" }
+    "database": "ok"
+  }
+}
+
+# Degraded response (database issue)
+{
+  "status": "degraded",
+  "checks": {
+    "database": "error"
   }
 }
 ```
@@ -52,14 +58,14 @@ curl -s https://api.yoursite.com/api/health/ready | jq
 
 **Symptoms:**
 - Chat requests return 502 Bad Gateway
-- `/api/health/ready` shows `llm.circuitBreaker: "open"`
+- Circuit breaker metrics show open state
 
 **Cause:** LLM provider is unavailable or timing out, circuit breaker opened.
 
 **Resolution:**
 1. Check LLM provider status (OpenAI status page, etc.)
 2. Wait for circuit breaker to transition to half-open (default: 30 seconds)
-3. If persistent, check `LLM_BASE_URL` and `LLM_API_KEY` env vars
+3. If persistent, check `LLM_API_KEY` env var
 4. See [Circuit Breaker Recovery](#circuit-breaker-recovery)
 
 ### Issue: API Returns 429 Too Many Requests
@@ -86,8 +92,8 @@ curl -s https://api.yoursite.com/api/health/ready | jq
 
 **Resolution:**
 ```bash
-# Check cache status
-curl -s https://api.yoursite.com/api/health/ready | jq '.checks.cache'
+# Check database status
+curl -s https://api.yoursite.com/api/health/ready | jq '.checks.database'
 
 # If using Redis, manually clear cache (emergency only)
 redis-cli -u $REDIS_URL FLUSHDB
@@ -99,7 +105,7 @@ redis-cli -u $REDIS_URL FLUSHDB
 
 **Symptoms:**
 - 500 errors with "database connection" in logs
-- `/api/health/ready` shows `database.status: "error"`
+- `/api/health/ready` shows `checks.database: "error"`
 
 **Cause:** Turso connection issues.
 
@@ -131,9 +137,6 @@ CLOSED --[failures >= 5]--> OPEN --[30s timeout]--> HALF_OPEN
 ### Checking Circuit Breaker State
 
 ```bash
-# Via health endpoint
-curl -s https://api.yoursite.com/api/health/ready | jq '.checks.llm'
-
 # Via metrics
 curl -s https://api.yoursite.com/api/metrics | grep circuit_breaker
 # circuit_breaker_state{name="llm"} 0  # 0=closed, 1=half_open, 2=open
@@ -191,9 +194,6 @@ bun run db:migrate:prod
 ### Check Cache Status
 
 ```bash
-# Via health check
-curl -s https://api.yoursite.com/api/health/ready | jq '.checks.cache'
-
 # Redis CLI (if using Redis)
 redis-cli -u $REDIS_URL INFO memory
 redis-cli -u $REDIS_URL DBSIZE
@@ -257,14 +257,6 @@ curl -s https://api.yoursite.com/api/metrics | grep rate_limit
 # rate_limit_remaining{ip_hash="..."} 3
 ```
 
-### Bypass for Specific IPs (Not Recommended)
-
-If you must whitelist IPs (e.g., for load testing):
-
-```bash
-# Add to environment
-export RATE_LIMIT_WHITELIST="192.168.1.1,10.0.0.1"
-```
 
 ## Deployment & Rollback
 
