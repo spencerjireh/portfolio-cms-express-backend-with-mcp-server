@@ -96,11 +96,11 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/spencerjirehcebrian/portfolio-backend' }
+      { icon: 'github', link: 'https://github.com/spencerjirehcebrian/portfolio-cms-express-backend-with-mcp-server' }
     ],
 
     editLink: {
-      pattern: 'https://github.com/spencerjirehcebrian/portfolio-backend/edit/main/docs-site/:path',
+      pattern: 'https://github.com/spencerjirehcebrian/portfolio-cms-express-backend-with-mcp-server/edit/main/docs-site/:path',
       text: 'Edit this page on GitHub'
     },
 

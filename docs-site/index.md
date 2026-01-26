@@ -13,7 +13,7 @@ hero:
       link: /guide/
     - theme: alt
       text: View on GitHub
-      link: https://github.com/spencerjirehcebrian/portfolio-backend
+      link: https://github.com/spencerjirehcebrian/portfolio-cms-express-backend-with-mcp-server
 
 features:
   - title: Content Management

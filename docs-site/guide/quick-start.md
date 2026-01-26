@@ -18,8 +18,8 @@ This guide will help you get the Portfolio Backend running locally in a few minu
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/spencerjirehcebrian/portfolio-backend.git
-cd portfolio-backend
+git clone https://github.com/spencerjirehcebrian/portfolio-cms-express-backend-with-mcp-server.git
+cd portfolio-cms-express-backend-with-mcp-server
 ```
 
 ### 2. Install Dependencies
