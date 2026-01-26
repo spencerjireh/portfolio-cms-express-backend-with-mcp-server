@@ -1,148 +1,132 @@
-# Portfolio Backend
+<p align="center">
+  <img src="docs-site/public/logo.png" alt="Portfolio CMS Backend" width="140" height="140">
+</p>
 
-A TypeScript/Express backend for a portfolio website featuring a flexible CMS, AI-powered chat, and MCP server integration.
+<h1 align="center">Portfolio CMS Backend</h1>
 
-## Features
+<p align="center">
+  <strong>AI & MCP enhanced portfolio content management system</strong>
+</p>
 
-- **Flexible CMS** - Free-form JSON content with versioning and soft delete
-- **AI Chat** - Rate-limited chat with PII obfuscation before sending to LLM
-- **MCP Server** - Model Context Protocol integration for AI tooling
-- **API Key Auth** - Simple admin authentication
-- **Optional Redis** - Distributed caching with in-memory fallback
+<p align="center">
+  <a href="https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/">Documentation</a> &bull;
+  <a href="https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/api/">API Reference</a> &bull;
+  <a href="https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/guide/quick-start.html">Quick Start</a>
+</p>
 
-## Architecture Highlights
+---
 
-- **Repository Pattern** - Clean separation between business logic and data access
-- **Event-Driven** - Decoupled side effects via typed event emitter
-- **Request Context** - AsyncLocalStorage for request-scoped data propagation
-- **Distributed Tracing** - OpenTelemetry integration
-- **Resilience Patterns** - Circuit breaker for LLM, token bucket rate limiting
-- **Content Versioning** - Full audit trail with restore capability
+## Overview
 
-See [docs/architecture/HLD.md](docs/architecture/HLD.md) for system design and [docs/architecture/LLD.md](docs/architecture/LLD.md) for implementation details.
+A TypeScript/Express backend for portfolio websites featuring a flexible CMS, AI-powered chat with tool use, and Model Context Protocol (MCP) server integration.
+
+### Key Features
+
+- **Flexible CMS** - Free-form JSON content with versioning, soft delete, and full audit trail
+- **AI Chat** - Rate-limited chat with PII obfuscation and tool use for content queries
+- **MCP Server** - Expose content tools to AI assistants via Model Context Protocol
+- **Resilient** - Circuit breaker for LLM, token bucket rate limiting, graceful degradation
+- **Observable** - OpenTelemetry tracing, Prometheus metrics, structured logging
 
 ## Tech Stack
 
-| Component | Choice |
-|-----------|--------|
+| Layer | Technology |
+|-------|------------|
 | Runtime | Bun |
-| Framework | Express |
-| Language | TypeScript |
+| Framework | Express + TypeScript |
 | Database | Turso (libSQL/SQLite) |
-| Cache | Redis (optional, memory fallback) |
 | ORM | Drizzle |
+| Cache | Redis (optional, memory fallback) |
 | Validation | Zod |
-| Logging | Pino |
-| Tracing | OpenTelemetry |
-| Metrics | prom-client |
-| Security | Helmet |
 | LLM | OpenAI-compatible API |
+| Tracing | OpenTelemetry |
+| Metrics | Prometheus |
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install
 bun install
 
-# Copy environment template
+# Configure
 cp .env.example .env
+# Edit .env with your Turso and API keys
 
-# Run database migrations
+# Database
 bun run db:migrate
 
-# Start development server
+# Run
 bun run dev
 ```
 
-## Environment Variables
+See the [Configuration Guide](https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/guide/configuration.html) for environment variables.
 
-```bash
-# Application
-NODE_ENV=development          # development | production | test
-PORT=3000
+## API
 
-# Database (required)
-TURSO_DATABASE_URL=libsql://your-db.turso.io
-TURSO_AUTH_TOKEN=your-token
+### Public
 
-# Cache (optional - falls back to in-memory)
-REDIS_URL=redis://localhost:6379
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/v1/content` | List published content |
+| `GET /api/v1/content/:type/:slug` | Get content item |
+| `GET /api/v1/content/bundle` | Get all content |
+| `POST /api/v1/chat` | Chat with AI |
+| `GET /api/health` | Health check |
+| `GET /api/metrics` | Prometheus metrics |
 
-# Security (required)
-ADMIN_API_KEY=your-secure-random-key-min-32-chars  # Generate: openssl rand -base64 32
+### Admin
 
-# LLM (required for chat)
-LLM_PROVIDER=openai           # openai | custom
-LLM_API_KEY=sk-...
-LLM_BASE_URL=                 # Optional: for custom endpoints
-LLM_MODEL=gpt-4o-mini         # Optional: override default
-LLM_MAX_TOKENS=500
-LLM_TEMPERATURE=0.7
+Requires `X-Admin-Key` header.
 
-# Rate Limiting
-RATE_LIMIT_CAPACITY=5         # Max burst size
-RATE_LIMIT_REFILL_RATE=0.333  # Tokens per second
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/v1/admin/content` | Create content |
+| `PUT /api/v1/admin/content/:id` | Update content |
+| `DELETE /api/v1/admin/content/:id` | Soft delete |
+| `GET /api/v1/admin/content/:id/history` | Version history |
+| `POST /api/v1/admin/content/:id/restore` | Restore version |
 
-# CORS (comma-separated origins)
-CORS_ORIGINS=https://yourportfolio.com,https://admin.yourportfolio.com
+Full specification: [API Reference](https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/api/reference.html)
 
-# Observability (optional)
-OTEL_ENABLED=false
-OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4318/v1/traces
-OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer token
+## Architecture
+
+```
+src/
+├── routes/        # HTTP handlers
+├── services/      # Business logic
+├── repositories/  # Data access
+├── middleware/    # Express middleware
+├── cache/         # Redis with memory fallback
+├── resilience/    # Rate limiter, circuit breaker
+├── events/        # Typed event emitter
+├── llm/           # LLM provider abstraction
+├── tools/         # Shared tools (chat & MCP)
+├── mcp/           # MCP server (stdio transport)
+└── observability/ # Metrics, tracing
 ```
 
-## API Overview
-
-### Public Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/content` | List published content |
-| GET | `/api/v1/content/:type/:slug` | Get single content item |
-| GET | `/api/v1/content/bundle` | Get all content in one request |
-| POST | `/api/v1/chat` | Send chat message |
-| GET | `/api/health` | Health check |
-| GET | `/api/metrics` | Prometheus metrics |
-
-### Admin Endpoints
-
-All require `X-Admin-Key` header.
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/admin/content` | List all content (including drafts) |
-| POST | `/api/v1/admin/content` | Create content |
-| PUT | `/api/v1/admin/content/:id` | Update content |
-| DELETE | `/api/v1/admin/content/:id` | Delete content |
-| GET | `/api/v1/admin/content/:id/history` | Get version history |
-| POST | `/api/v1/admin/content/:id/restore` | Restore to previous version |
-
-See [docs/architecture/api.yaml](docs/architecture/api.yaml) for full OpenAPI specification.
+See [Architecture Overview](https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/architecture/) for details.
 
 ## Documentation
 
-| Document | Purpose |
-|----------|---------|
-| [HLD.md](docs/architecture/HLD.md) | High-level design, system context, security architecture |
-| [LLD.md](docs/architecture/LLD.md) | Component design, database schema, API contracts, testing strategy |
-| [api.yaml](docs/architecture/api.yaml) | OpenAPI 3.0 specification |
-| [ADRs](docs/architecture/adr/) | Architecture Decision Records (7 decisions) |
-| [MCP Server](docs/architecture/mcp-server.md) | Model Context Protocol integration guide |
-| [Content Model](docs/architecture/content-model.md) | Content types, schemas, and validation rules |
-| [Frontend Integration](docs/architecture/frontend-integration.md) | TypeScript client, patterns, and examples |
-| [Runbook](docs/architecture/runbook.md) | Operational procedures and troubleshooting |
+| Topic | Link |
+|-------|------|
+| Getting Started | [Quick Start Guide](https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/guide/quick-start.html) |
+| Configuration | [Environment & Settings](https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/guide/configuration.html) |
+| Architecture | [High-Level Design](https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/architecture/high-level-design.html) |
+| API | [OpenAPI Reference](https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/api/reference.html) |
+| MCP Server | [Integration Guide](https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/integrations/mcp-server.html) |
+| Operations | [Runbook](https://spencerjirehcebrian.github.io/portfolio-cms-express-backend-with-mcp-server/operations/runbook.html) |
 
 ## Scripts
 
 ```bash
-bun run dev          # Start development server with hot reload
-bun run build        # Build for production
-bun run start        # Start production server
-bun run test         # Run tests
-bun run lint         # Lint code
-bun run db:migrate   # Run database migrations
-bun run db:studio    # Open Drizzle Studio
+bun run dev        # Development server
+bun run build      # Production build
+bun run test       # Run tests
+bun run lint       # Lint code
+bun run db:studio  # Drizzle Studio GUI
+bun run mcp        # Start MCP server
 ```
 
 ## License
