@@ -13,13 +13,13 @@ export async function initializeTracing(): Promise<void> {
     const { getNodeAutoInstrumentations } = await import(
       '@opentelemetry/auto-instrumentations-node'
     )
-    const { Resource } = await import('@opentelemetry/resources')
+    const { resourceFromAttributes } = await import('@opentelemetry/resources')
     const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = await import(
       '@opentelemetry/semantic-conventions'
     )
 
     const sdk = new NodeSDK({
-      resource: new Resource({
+      resource: resourceFromAttributes({
         [ATTR_SERVICE_NAME]: 'portfolio-backend',
         [ATTR_SERVICE_VERSION]: '1.0.0',
       }),

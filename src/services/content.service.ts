@@ -244,7 +244,7 @@ class ContentService {
 
     eventEmitter.emit('content:created', {
       id: data.id,
-      type: data.type,
+      type: data.type as ContentType,
       slug: data.slug,
       version: data.version,
       changedBy,
@@ -275,12 +275,12 @@ class ContentService {
     // Validate data if provided
     let validatedData = dto.data
     if (dto.data) {
-      validatedData = validateContentData(existing.type, dto.data)
+      validatedData = validateContentData(existing.type as ContentType, dto.data)
     }
 
     // Check slug uniqueness if changing
     if (dto.slug && dto.slug !== existing.slug) {
-      const slugExists = await contentRepository.slugExists(existing.type, dto.slug, id)
+      const slugExists = await contentRepository.slugExists(existing.type as ContentType, dto.slug, id)
       if (slugExists) {
         throw new ConflictError(`Slug '${dto.slug}' already exists for type '${existing.type}'`, 'slug')
       }
@@ -311,7 +311,7 @@ class ContentService {
 
     eventEmitter.emit('content:updated', {
       id: data.id,
-      type: data.type,
+      type: data.type as ContentType,
       version: data.version,
       previousVersion,
       changedFields,
@@ -343,7 +343,7 @@ class ContentService {
 
       eventEmitter.emit('content:deleted', {
         id,
-        type: existing.type,
+        type: existing.type as ContentType,
         hard: true,
         changedBy,
       })
@@ -358,7 +358,7 @@ class ContentService {
 
     eventEmitter.emit('content:deleted', {
       id,
-      type: existing.type,
+      type: existing.type as ContentType,
       hard: false,
       changedBy,
     })
@@ -405,7 +405,7 @@ class ContentService {
 
     eventEmitter.emit('content:restored', {
       id: data.id,
-      type: data.type,
+      type: data.type as ContentType,
       fromVersion: version,
       toVersion: data.version,
       changedBy,
