@@ -16,6 +16,16 @@ import type { ChatSession, ChatMessage, SessionStatus } from '@/db/types'
 
 const MAX_TOOL_ITERATIONS = 5
 
+/**
+ * Captured tool call information for evaluation and debugging.
+ */
+export interface CapturedToolCall {
+  id: string
+  name: string
+  arguments: Record<string, unknown>
+  result: string
+}
+
 const SYSTEM_PROMPT = `You are a helpful assistant for Spencer's portfolio website.
 You can answer questions about Spencer's projects, skills, experience, and education.
 Be concise, professional, and helpful. If you don't know something, say so.
@@ -41,6 +51,7 @@ export interface SendMessageInput {
   ipHash: string
   message: string
   userAgent?: string
+  includeToolCalls?: boolean
 }
 
 export interface ChatMessageResponse {
@@ -54,6 +65,7 @@ export interface ChatResponse {
   sessionId: string
   message: ChatMessageResponse
   tokensUsed: number
+  toolCalls?: CapturedToolCall[]
 }
 
 export interface SessionWithMessages extends ChatSession {
@@ -113,7 +125,7 @@ class ChatService {
    * Handles rate limiting, session management, and LLM calls.
    */
   async sendMessage(input: SendMessageInput): Promise<ChatResponse> {
-    const { visitorId, ipHash, message, userAgent } = input
+    const { visitorId, ipHash, message, userAgent, includeToolCalls } = input
 
     // 1. Rate limit check
     const rateLimitResult = await rateLimiter.consume(ipHash)
@@ -150,7 +162,7 @@ class ChatService {
 
     // 5. Call LLM with tool loop
     const llmProvider = getLLMProvider()
-    const { content: finalContent, tokensUsed } = await this.executeWithToolLoop(
+    const { content: finalContent, tokensUsed, toolCalls } = await this.executeWithToolLoop(
       llmProvider,
       conversationHistory
     )
@@ -170,7 +182,7 @@ class ChatService {
       tokensUsed,
     })
 
-    return {
+    const response: ChatResponse = {
       sessionId: session.id,
       message: {
         id: assistantMessage.id,
@@ -180,6 +192,13 @@ class ChatService {
       },
       tokensUsed,
     }
+
+    // Include tool calls if requested
+    if (includeToolCalls) {
+      response.toolCalls = toolCalls
+    }
+
+    return response
   }
 
   /**
@@ -189,9 +208,10 @@ class ChatService {
   private async executeWithToolLoop(
     llmProvider: ReturnType<typeof getLLMProvider>,
     history: LLMMessage[]
-  ): Promise<{ content: string; tokensUsed: number }> {
+  ): Promise<{ content: string; tokensUsed: number; toolCalls: CapturedToolCall[] }> {
     let iterations = 0
     let totalTokensUsed = 0
+    const capturedToolCalls: CapturedToolCall[] = []
 
     // Initial call with tools
     let response = await llmCircuitBreaker.execute(() =>
@@ -211,6 +231,22 @@ class ChatService {
       // Execute tools and add results to history
       for (const toolCall of response.tool_calls) {
         const result = await executeToolCall(toolCall)
+
+        // Capture tool call for evaluation/debugging
+        let parsedArgs: Record<string, unknown> = {}
+        try {
+          parsedArgs = JSON.parse(toolCall.function.arguments) as Record<string, unknown>
+        } catch {
+          // Keep empty object if parsing fails
+        }
+
+        capturedToolCalls.push({
+          id: toolCall.id,
+          name: toolCall.function.name,
+          arguments: parsedArgs,
+          result,
+        })
+
         history.push({
           role: 'tool',
           content: result,
@@ -229,6 +265,7 @@ class ChatService {
     return {
       content: response.content,
       tokensUsed: totalTokensUsed,
+      toolCalls: capturedToolCalls,
     }
   }
 

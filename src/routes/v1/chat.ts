@@ -20,7 +20,8 @@ function asyncHandler(
  * Send a message to the chat assistant.
  *
  * Body: { message: string, visitorId: string }
- * Response: { sessionId, message: { id, role, content, createdAt }, tokensUsed }
+ * Query: { includeToolCalls?: 'true' }
+ * Response: { sessionId, message: { id, role, content, createdAt }, tokensUsed, toolCalls? }
  */
 chatRouter.post(
   '/',
@@ -35,12 +36,16 @@ chatRouter.post(
     // Get user agent
     const userAgent = req.headers['user-agent']
 
+    // Check if tool calls should be included in response
+    const includeToolCalls = req.query.includeToolCalls === 'true'
+
     // Send message and get response
     const response = await chatService.sendMessage({
       visitorId,
       ipHash,
       message,
       userAgent,
+      includeToolCalls,
     })
 
     res.json(response)

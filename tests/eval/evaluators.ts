@@ -1,4 +1,4 @@
-import type { Assertion, Category, EvalScore } from './types'
+import type { Assertion, Category, EvalScore, CapturedToolCall } from './types'
 import { CATEGORY_WEIGHTS } from './types'
 
 const OPENAI_API_URL = 'https://api.openai.com/v1'
@@ -234,4 +234,133 @@ export function computeComposite(scores: EvalScore, category: Category): number 
   }
 
   return totalWeight > 0 ? weightedSum / totalWeight : 0
+}
+
+/**
+ * Gets a nested value from an object using dot notation.
+ * E.g., getNestedValue({ a: { b: 1 } }, 'a.b') returns 1
+ */
+export function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  const parts = path.split('.')
+  let current: unknown = obj
+
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== 'object') {
+      return undefined
+    }
+    current = (current as Record<string, unknown>)[part]
+  }
+
+  return current
+}
+
+/**
+ * Tool call evaluation result.
+ */
+export interface ToolCallEvalResult {
+  score: number
+  missingTools: string[]
+  unexpectedTools: string[]
+  failedAssertions: string[]
+}
+
+/**
+ * Evaluates tool calls against assertions and expected/forbidden tools.
+ */
+export function evaluateToolCalls(
+  toolCalls: CapturedToolCall[],
+  assertions: Assertion[],
+  expectedTools?: string[],
+  forbiddenTools?: string[]
+): ToolCallEvalResult {
+  const failedAssertions: string[] = []
+  const actualToolNames = toolCalls.map((tc) => tc.name)
+  const actualToolSet = new Set(actualToolNames)
+
+  // Count tools called
+  const toolCallCounts: Record<string, number> = {}
+  for (const name of actualToolNames) {
+    toolCallCounts[name] = (toolCallCounts[name] ?? 0) + 1
+  }
+
+  // Check expected tools
+  const missingTools: string[] = []
+  if (expectedTools) {
+    for (const tool of expectedTools) {
+      if (!actualToolSet.has(tool)) {
+        missingTools.push(tool)
+      }
+    }
+  }
+
+  // Check forbidden tools
+  const unexpectedTools: string[] = []
+  if (forbiddenTools) {
+    for (const tool of forbiddenTools) {
+      if (actualToolSet.has(tool)) {
+        unexpectedTools.push(tool)
+      }
+    }
+  }
+
+  // Evaluate tool-related assertions
+  const toolAssertions = assertions.filter((a) =>
+    ['toolCalled', 'toolNotCalled', 'toolCallCount', 'toolArgument'].includes(a.type)
+  )
+
+  for (const assertion of toolAssertions) {
+    const { type, toolName, argumentPath, argumentValue, minCount, maxCount } = assertion
+
+    if (type === 'toolCalled') {
+      if (toolName && !actualToolSet.has(toolName)) {
+        failedAssertions.push(`Expected tool '${toolName}' to be called`)
+      }
+    } else if (type === 'toolNotCalled') {
+      if (toolName && actualToolSet.has(toolName)) {
+        failedAssertions.push(`Expected tool '${toolName}' to NOT be called`)
+      }
+    } else if (type === 'toolCallCount') {
+      if (toolName) {
+        const count = toolCallCounts[toolName] ?? 0
+        if (minCount !== undefined && count < minCount) {
+          failedAssertions.push(`Tool '${toolName}' called ${count} times, expected at least ${minCount}`)
+        }
+        if (maxCount !== undefined && count > maxCount) {
+          failedAssertions.push(`Tool '${toolName}' called ${count} times, expected at most ${maxCount}`)
+        }
+      }
+    } else if (type === 'toolArgument') {
+      if (toolName && argumentPath !== undefined) {
+        // Find tool calls matching the tool name
+        const matchingCalls = toolCalls.filter((tc) => tc.name === toolName)
+        if (matchingCalls.length === 0) {
+          failedAssertions.push(`Tool '${toolName}' was not called, cannot check argument '${argumentPath}'`)
+        } else {
+          // Check if any call has the expected argument value
+          const hasMatchingArg = matchingCalls.some((tc) => {
+            const actualValue = getNestedValue(tc.arguments, argumentPath)
+            return JSON.stringify(actualValue) === JSON.stringify(argumentValue)
+          })
+          if (!hasMatchingArg) {
+            failedAssertions.push(
+              `Tool '${toolName}' argument '${argumentPath}' did not match expected value '${JSON.stringify(argumentValue)}'`
+            )
+          }
+        }
+      }
+    }
+  }
+
+  // Calculate score
+  const totalChecks =
+    toolAssertions.length + (expectedTools?.length ?? 0) + (forbiddenTools?.length ?? 0)
+
+  if (totalChecks === 0) {
+    return { score: 1.0, missingTools, unexpectedTools, failedAssertions }
+  }
+
+  const failedCount = failedAssertions.length + missingTools.length + unexpectedTools.length
+  const score = Math.max(0, (totalChecks - failedCount) / totalChecks)
+
+  return { score, missingTools, unexpectedTools, failedAssertions }
 }

@@ -1,0 +1,63 @@
+[
+  {
+    "id": "toolfail-001",
+    "category": "edge",
+    "input": "Tell me about Spencer's education background",
+    "expectedBehavior": "Response should gracefully indicate education info is not available after attempting to retrieve it with tools",
+    "expectedTools": ["list_content", "search_content"],
+    "assertions": [
+      { "type": "toolCalled", "toolName": "list_content" },
+      { "type": "regex", "value": "don't have|not available|education.*not|no education|information.*not found", "flags": "i" },
+      { "type": "lengthMin", "value": 30 }
+    ]
+  },
+  {
+    "id": "toolfail-002",
+    "category": "edge",
+    "input": "Can you show me the details of the 'quantum-computing-simulator' project?",
+    "expectedBehavior": "Response should gracefully handle nonexistent project and explain it wasn't found",
+    "expectedTools": ["get_content"],
+    "assertions": [
+      { "type": "toolCalled", "toolName": "get_content" },
+      { "type": "toolArgument", "toolName": "get_content", "argumentPath": "slug", "argumentValue": "quantum-computing-simulator" },
+      { "type": "regex", "value": "couldn't find|not found|doesn't exist|no project|unable to find|not available", "flags": "i" },
+      { "type": "lengthMin", "value": 20 }
+    ]
+  },
+  {
+    "id": "toolfail-003",
+    "category": "edge",
+    "input": "Search for Spencer's experience with blockchain technology",
+    "expectedBehavior": "Response should gracefully indicate no blockchain-related content was found",
+    "expectedTools": ["search_content"],
+    "assertions": [
+      { "type": "toolCalled", "toolName": "search_content" },
+      { "type": "toolArgument", "toolName": "search_content", "argumentPath": "query", "argumentValue": "blockchain" },
+      { "type": "regex", "value": "no results|not found|couldn't find|doesn't have|no mention|no information", "flags": "i" },
+      { "type": "lengthMin", "value": 20 }
+    ]
+  },
+  {
+    "id": "toolfail-004",
+    "category": "edge",
+    "input": "What is Spencer's phone number and email address?",
+    "expectedBehavior": "Response should indicate contact information is not available (since it's not seeded)",
+    "expectedTools": ["list_content", "get_content"],
+    "assertions": [
+      { "type": "regex", "value": "don't have|not available|contact.*not|no contact|cannot provide|isn't included", "flags": "i" },
+      { "type": "notRegex", "value": "@.*\\.com|\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}", "flags": "i" },
+      { "type": "lengthMin", "value": 20 }
+    ]
+  },
+  {
+    "id": "toolfail-005",
+    "category": "edge",
+    "input": "Does Spencer have any machine learning or AI experience?",
+    "expectedBehavior": "Response should search and gracefully report if ML/AI is not explicitly mentioned in skills/experience",
+    "expectedTools": ["search_content"],
+    "assertions": [
+      { "type": "toolCalled", "toolName": "search_content" },
+      { "type": "lengthMin", "value": 30 }
+    ]
+  }
+]

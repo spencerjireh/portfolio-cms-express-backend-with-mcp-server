@@ -1,5 +1,14 @@
 import { createClient, type Client } from '@libsql/client'
-import type { EvalCase, EvalConfig, EvalResult, EvalRunResult, EvalScore, Category } from './types'
+import type {
+  EvalCase,
+  EvalConfig,
+  EvalResult,
+  EvalRunResult,
+  EvalScore,
+  Category,
+  CapturedToolCall,
+  ToolEvaluation,
+} from './types'
 import { CATEGORY_WEIGHTS, PASS_THRESHOLD } from './types'
 import { getAllSeedContent, EVAL_SESSION_PREFIX, EVAL_CONTENT_PREFIX } from './fixtures'
 import {
@@ -7,6 +16,7 @@ import {
   evaluateLlmJudge,
   evaluateEmbedding,
   computeComposite,
+  evaluateToolCalls,
 } from './evaluators'
 
 const RATE_LIMIT_DELAY = 100 // ms between OpenAI calls
@@ -102,6 +112,11 @@ export class EvalRunner {
    * Runs evaluation for a single case.
    */
   async runCase(evalCase: EvalCase): Promise<EvalResult> {
+    // Route to multi-turn handler if conversation is defined
+    if (evalCase.conversation && evalCase.conversation.length > 0) {
+      return this.runMultiTurnCase(evalCase)
+    }
+
     const start = performance.now()
     const sessionId = `${EVAL_SESSION_PREFIX}${evalCase.id}-${Date.now()}`
 
@@ -109,11 +124,20 @@ export class EvalRunner {
       console.log(`  Running: ${evalCase.id}`)
     }
 
+    // Determine if we need tool calls (for tool-related assertions or expected/forbidden tools)
+    const hasToolAssertions =
+      evalCase.assertions?.some((a) =>
+        ['toolCalled', 'toolNotCalled', 'toolCallCount', 'toolArgument'].includes(a.type)
+      ) ?? false
+    const needsToolCalls =
+      hasToolAssertions || !!evalCase.expectedTools || !!evalCase.forbiddenTools
+
     // Call chat API with retry
-    const { response, retryCount: chatRetryCount } = await this.callChatApiWithRetry(
-      sessionId,
-      evalCase.input
-    )
+    const {
+      response,
+      toolCalls,
+      retryCount: chatRetryCount,
+    } = await this.callChatApiWithRetry(sessionId, evalCase.input, needsToolCalls)
 
     // Rate limit
     await this.delay(RATE_LIMIT_DELAY)
@@ -127,10 +151,43 @@ export class EvalRunner {
     }
     let llmReasoning: string | undefined
     let totalRetryCount = chatRetryCount
+    let toolEvaluation: ToolEvaluation | undefined
 
-    // Programmatic evaluation
-    if (weights.programmatic > 0 && evalCase.assertions) {
-      scores.programmatic = evaluateProgrammatic(response, evalCase.assertions)
+    // Filter out tool-related assertions for programmatic evaluation
+    const nonToolAssertions = evalCase.assertions?.filter(
+      (a) => !['toolCalled', 'toolNotCalled', 'toolCallCount', 'toolArgument'].includes(a.type)
+    )
+    const toolAssertions = evalCase.assertions?.filter((a) =>
+      ['toolCalled', 'toolNotCalled', 'toolCallCount', 'toolArgument'].includes(a.type)
+    )
+
+    // Programmatic evaluation (non-tool assertions)
+    if (weights.programmatic > 0 && nonToolAssertions && nonToolAssertions.length > 0) {
+      scores.programmatic = evaluateProgrammatic(response, nonToolAssertions)
+    }
+
+    // Tool call evaluation
+    if (needsToolCalls && toolCalls) {
+      const toolResult = evaluateToolCalls(
+        toolCalls,
+        toolAssertions ?? [],
+        evalCase.expectedTools,
+        evalCase.forbiddenTools
+      )
+
+      toolEvaluation = {
+        expectedCalled: evalCase.expectedTools ?? [],
+        actualCalled: toolCalls.map((tc) => tc.name),
+        missingTools: toolResult.missingTools,
+        unexpectedTools: toolResult.unexpectedTools,
+      }
+
+      // Combine tool score with programmatic score
+      if (scores.programmatic !== null) {
+        scores.programmatic = (scores.programmatic + toolResult.score) / 2
+      } else {
+        scores.programmatic = toolResult.score
+      }
     }
 
     // LLM Judge evaluation with retry
@@ -166,6 +223,163 @@ export class EvalRunner {
       llmReasoning,
       durationMs,
       retryCount: totalRetryCount > 0 ? totalRetryCount : undefined,
+      toolCalls: needsToolCalls ? toolCalls : undefined,
+      toolEvaluation,
+    }
+  }
+
+  /**
+   * Runs evaluation for a multi-turn conversation case.
+   */
+  private async runMultiTurnCase(evalCase: EvalCase): Promise<EvalResult> {
+    const start = performance.now()
+    const sessionId = `${EVAL_SESSION_PREFIX}${evalCase.id}-${Date.now()}`
+    const visitorId = `eval-visitor-${sessionId}`
+
+    if (this.verbose) {
+      console.log(`  Running multi-turn: ${evalCase.id}`)
+    }
+
+    const conversation = evalCase.conversation!
+    const evaluateTurn = evalCase.evaluateTurn ?? 'last'
+
+    // Collect all responses and tool calls
+    const turnResponses: Array<{ content: string; toolCalls?: CapturedToolCall[] }> = []
+    let lastResponse = ''
+    let allToolCalls: CapturedToolCall[] = []
+    let totalRetryCount = 0
+
+    // Process each turn
+    for (let i = 0; i < conversation.length; i++) {
+      const turn = conversation[i]
+
+      if (turn.role === 'user') {
+        // Determine if we need tool calls for this turn
+        const needsToolCalls = !!turn.expectedTools || !!turn.assertions?.some((a) =>
+          ['toolCalled', 'toolNotCalled', 'toolCallCount', 'toolArgument'].includes(a.type)
+        )
+
+        try {
+          const { response, toolCalls, retryCount } = await this.callChatApiWithRetry(
+            sessionId,
+            turn.content,
+            needsToolCalls
+          )
+          turnResponses.push({ content: response, toolCalls })
+          lastResponse = response
+          if (toolCalls) {
+            allToolCalls = allToolCalls.concat(toolCalls)
+          }
+          totalRetryCount += retryCount
+          await this.delay(RATE_LIMIT_DELAY)
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          return {
+            caseId: evalCase.id,
+            category: evalCase.category,
+            input: conversation.map((t) => `${t.role}: ${t.content}`).join('\n'),
+            response: '',
+            scores: { programmatic: null, llmJudge: null, embedding: null },
+            compositeScore: 0,
+            passed: false,
+            durationMs: Math.round(performance.now() - start),
+            error: `Turn ${i + 1} failed: ${errorMessage}`,
+          }
+        }
+      }
+    }
+
+    // Determine which response to evaluate
+    const responseToEvaluate = lastResponse
+    const inputToEvaluate = conversation.map((t) => `${t.role}: ${t.content}`).join('\n')
+
+    // Get assertions from last user turn if evaluating 'last'
+    const lastUserTurn = [...conversation].reverse().find((t) => t.role === 'user')
+    const assertions = lastUserTurn?.assertions ?? evalCase.assertions
+
+    // Run evaluations
+    const weights = CATEGORY_WEIGHTS[evalCase.category]
+    const scores: EvalScore = {
+      programmatic: null,
+      llmJudge: null,
+      embedding: null,
+    }
+    let llmReasoning: string | undefined
+    let toolEvaluation: ToolEvaluation | undefined
+
+    // Filter assertions
+    const nonToolAssertions = assertions?.filter(
+      (a) => !['toolCalled', 'toolNotCalled', 'toolCallCount', 'toolArgument'].includes(a.type)
+    )
+    const toolAssertions = assertions?.filter((a) =>
+      ['toolCalled', 'toolNotCalled', 'toolCallCount', 'toolArgument'].includes(a.type)
+    )
+
+    // Programmatic evaluation
+    if (weights.programmatic > 0 && nonToolAssertions && nonToolAssertions.length > 0) {
+      scores.programmatic = evaluateProgrammatic(responseToEvaluate, nonToolAssertions)
+    }
+
+    // Tool call evaluation
+    const expectedTools = lastUserTurn?.expectedTools ?? evalCase.expectedTools
+    const forbiddenTools = evalCase.forbiddenTools
+    if ((toolAssertions && toolAssertions.length > 0) || expectedTools || forbiddenTools) {
+      const toolResult = evaluateToolCalls(
+        allToolCalls,
+        toolAssertions ?? [],
+        expectedTools,
+        forbiddenTools
+      )
+
+      toolEvaluation = {
+        expectedCalled: expectedTools ?? [],
+        actualCalled: allToolCalls.map((tc) => tc.name),
+        missingTools: toolResult.missingTools,
+        unexpectedTools: toolResult.unexpectedTools,
+      }
+
+      if (scores.programmatic !== null) {
+        scores.programmatic = (scores.programmatic + toolResult.score) / 2
+      } else {
+        scores.programmatic = toolResult.score
+      }
+    }
+
+    // LLM Judge evaluation
+    if (weights.llmJudge > 0) {
+      const judgeResult = await this.callLlmJudgeWithRetry(
+        inputToEvaluate,
+        responseToEvaluate,
+        evalCase.expectedBehavior
+      )
+      scores.llmJudge = judgeResult.score
+      llmReasoning = judgeResult.reasoning
+      totalRetryCount += judgeResult.retryCount
+      await this.delay(RATE_LIMIT_DELAY)
+    }
+
+    // Embedding evaluation
+    if (weights.embedding > 0 && evalCase.groundTruth) {
+      scores.embedding = await evaluateEmbedding(this.openaiKey, responseToEvaluate, evalCase.groundTruth)
+      await this.delay(RATE_LIMIT_DELAY)
+    }
+
+    const compositeScore = computeComposite(scores, evalCase.category)
+    const durationMs = Math.round(performance.now() - start)
+
+    return {
+      caseId: evalCase.id,
+      category: evalCase.category,
+      input: inputToEvaluate,
+      response: responseToEvaluate,
+      scores,
+      compositeScore,
+      passed: compositeScore >= PASS_THRESHOLD,
+      llmReasoning,
+      durationMs,
+      retryCount: totalRetryCount > 0 ? totalRetryCount : undefined,
+      toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined,
+      toolEvaluation,
     }
   }
 
@@ -231,10 +445,15 @@ export class EvalRunner {
   /**
    * Calls the chat API endpoint.
    */
-  private async callChatApi(sessionId: string, message: string): Promise<string> {
+  private async callChatApi(
+    sessionId: string,
+    message: string,
+    includeToolCalls = false
+  ): Promise<{ content: string; toolCalls?: CapturedToolCall[] }> {
     const visitorId = `eval-visitor-${sessionId}`
+    const queryParam = includeToolCalls ? '?includeToolCalls=true' : ''
 
-    const res = await fetch(`${this.apiBaseUrl}/api/v1/chat`, {
+    const res = await fetch(`${this.apiBaseUrl}/api/v1/chat${queryParam}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -250,8 +469,14 @@ export class EvalRunner {
       throw new Error(`Chat API error ${res.status}: ${text}`)
     }
 
-    const data = (await res.json()) as { message: { content: string } }
-    return data.message?.content ?? ''
+    const data = (await res.json()) as {
+      message: { content: string }
+      toolCalls?: CapturedToolCall[]
+    }
+    return {
+      content: data.message?.content ?? '',
+      toolCalls: data.toolCalls,
+    }
   }
 
   /**
@@ -260,7 +485,16 @@ export class EvalRunner {
   private groupByCategory(
     results: EvalResult[]
   ): Record<Category, { total: number; passed: number; score: number }> {
-    const categories: Category[] = ['relevance', 'accuracy', 'safety', 'pii', 'tone', 'refusal', 'edge']
+    const categories: Category[] = [
+      'relevance',
+      'accuracy',
+      'safety',
+      'pii',
+      'tone',
+      'refusal',
+      'edge',
+      'hallucination',
+    ]
     const byCategory = {} as Record<Category, { total: number; passed: number; score: number }>
 
     for (const category of categories) {
@@ -293,15 +527,16 @@ export class EvalRunner {
    */
   private async callChatApiWithRetry(
     sessionId: string,
-    message: string
-  ): Promise<{ response: string; retryCount: number }> {
+    message: string,
+    includeToolCalls = false
+  ): Promise<{ response: string; toolCalls?: CapturedToolCall[]; retryCount: number }> {
     let lastError: Error | null = null
     let retryCount = 0
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const response = await this.callChatApi(sessionId, message)
-        return { response, retryCount }
+        const result = await this.callChatApi(sessionId, message, includeToolCalls)
+        return { response: result.content, toolCalls: result.toolCalls, retryCount }
       } catch (error) {
         lastError = error as Error
         retryCount = attempt

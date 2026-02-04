@@ -1,7 +1,15 @@
 /**
  * Evaluation categories for LLM responses.
  */
-export type Category = 'relevance' | 'accuracy' | 'safety' | 'pii' | 'tone' | 'refusal' | 'edge'
+export type Category =
+  | 'relevance'
+  | 'accuracy'
+  | 'safety'
+  | 'pii'
+  | 'tone'
+  | 'refusal'
+  | 'edge'
+  | 'hallucination'
 
 /**
  * Assertion types for programmatic evaluation.
@@ -15,12 +23,42 @@ export type AssertionType =
   | 'lengthMax'
   | 'startsWith'
   | 'endsWith'
+  | 'toolCalled'
+  | 'toolNotCalled'
+  | 'toolCallCount'
+  | 'toolArgument'
 
 export interface Assertion {
   type: AssertionType
   value?: string | number
   flags?: string // for regex (e.g., 'i' for case-insensitive)
   caseSensitive?: boolean
+  // Tool-related assertion fields
+  toolName?: string // Tool name for toolCalled, toolNotCalled, toolCallCount, toolArgument
+  argumentPath?: string // Dot-notation path for toolArgument (e.g., "type" or "query")
+  argumentValue?: unknown // Expected argument value for toolArgument
+  minCount?: number // Minimum invocation count for toolCallCount
+  maxCount?: number // Maximum invocation count for toolCallCount
+}
+
+/**
+ * Captured tool call information for evaluation.
+ */
+export interface CapturedToolCall {
+  id: string
+  name: string
+  arguments: Record<string, unknown>
+  result: string
+}
+
+/**
+ * A single turn in a multi-turn conversation.
+ */
+export interface ConversationTurn {
+  role: 'user' | 'assistant'
+  content: string
+  assertions?: Assertion[]
+  expectedTools?: string[]
 }
 
 /**
@@ -33,6 +71,12 @@ export interface EvalCase {
   expectedBehavior: string
   assertions?: Assertion[]
   groundTruth?: string
+  // Tool-related fields
+  expectedTools?: string[] // Tools that should be called
+  forbiddenTools?: string[] // Tools that should NOT be called
+  // Multi-turn conversation support
+  conversation?: ConversationTurn[] // Multi-turn conversation flow
+  evaluateTurn?: number | 'all' | 'last' // Which turn(s) to evaluate (default: 'last')
 }
 
 /**
@@ -42,6 +86,16 @@ export interface EvalScore {
   programmatic: number | null
   llmJudge: number | null
   embedding: number | null
+}
+
+/**
+ * Tool evaluation result details.
+ */
+export interface ToolEvaluation {
+  expectedCalled: string[]
+  actualCalled: string[]
+  missingTools: string[]
+  unexpectedTools: string[]
 }
 
 /**
@@ -59,6 +113,9 @@ export interface EvalResult {
   durationMs: number
   error?: string
   retryCount?: number
+  // Tool call tracking
+  toolCalls?: CapturedToolCall[]
+  toolEvaluation?: ToolEvaluation
 }
 
 /**
@@ -82,12 +139,13 @@ export const CATEGORY_WEIGHTS: Record<
   { programmatic: number; llmJudge: number; embedding: number }
 > = {
   pii: { programmatic: 1.0, llmJudge: 0.0, embedding: 0.0 },
-  safety: { programmatic: 0.4, llmJudge: 0.6, embedding: 0.0 },
+  safety: { programmatic: 0.2, llmJudge: 0.8, embedding: 0.0 },
   relevance: { programmatic: 0.2, llmJudge: 0.8, embedding: 0.0 },
   accuracy: { programmatic: 0.2, llmJudge: 0.3, embedding: 0.5 },
   tone: { programmatic: 0.0, llmJudge: 1.0, embedding: 0.0 },
   refusal: { programmatic: 0.3, llmJudge: 0.7, embedding: 0.0 },
   edge: { programmatic: 0.5, llmJudge: 0.5, embedding: 0.0 },
+  hallucination: { programmatic: 0.3, llmJudge: 0.7, embedding: 0.0 },
 }
 
 /**
