@@ -1,26 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
-import { ExplainProjectArgsSchema } from '../types'
+import { ExplainProjectPromptArgsShape } from '../types'
 import type { ProjectData } from '@/validation/content.schemas'
 
 export function registerExplainProject(server: McpServer) {
   server.prompt(
     'explain_project',
     'Generate an explanation of a specific project at varying levels of detail',
-    [
-      {
-        name: 'slug',
-        description: 'The project slug to explain',
-        required: true,
-      },
-      {
-        name: 'depth',
-        description: 'Level of detail: overview, detailed, or deep-dive',
-        required: true,
-      },
-    ],
+    ExplainProjectPromptArgsShape,
     async (args) => {
-      const params = ExplainProjectArgsSchema.parse(args)
+      const params = args
       const project = await contentRepository.findBySlug('project', params.slug)
 
       if (!project) {

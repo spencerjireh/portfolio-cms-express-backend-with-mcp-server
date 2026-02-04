@@ -1,21 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
-import { SummarizePortfolioArgsSchema } from '../types'
+import { SummarizePortfolioPromptArgsShape } from '../types'
 import type { ProjectData, SkillsListData, ExperienceListData, SiteConfigData } from '@/validation/content.schemas'
 
 export function registerSummarizePortfolio(server: McpServer) {
   server.prompt(
     'summarize_portfolio',
     'Generate a summary of the portfolio tailored to a specific audience',
-    [
-      {
-        name: 'audience',
-        description: 'Target audience: recruiter, technical, or general',
-        required: true,
-      },
-    ],
+    SummarizePortfolioPromptArgsShape,
     async (args) => {
-      const params = SummarizePortfolioArgsSchema.parse(args)
+      const params = args
       const bundle = await contentRepository.getBundle()
 
       // Prepare portfolio data

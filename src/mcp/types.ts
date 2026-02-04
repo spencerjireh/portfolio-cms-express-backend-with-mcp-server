@@ -58,6 +58,21 @@ export const CompareSkillsArgsSchema = z.object({
   niceToHave: z.array(z.string()).optional(),
 })
 
+// MCP Prompt argument shapes (MCP prompts receive string arguments from users)
+export const CompareSkillsPromptArgsShape = {
+  requiredSkills: z.string().describe('Comma-separated list of required skills for the job'),
+  niceToHave: z.string().optional().describe('Comma-separated list of nice-to-have skills'),
+}
+
+export const ExplainProjectPromptArgsShape = {
+  slug: z.string().describe('The project slug to explain'),
+  depth: z.enum(['overview', 'detailed', 'deep-dive']).describe('Level of detail: overview, detailed, or deep-dive'),
+}
+
+export const SummarizePortfolioPromptArgsShape = {
+  audience: z.enum(['recruiter', 'technical', 'general']).describe('Target audience: recruiter, technical, or general'),
+}
+
 // Type exports
 export type ListContentInput = z.infer<typeof ListContentInputSchema>
 export type GetContentInput = z.infer<typeof GetContentInputSchema>

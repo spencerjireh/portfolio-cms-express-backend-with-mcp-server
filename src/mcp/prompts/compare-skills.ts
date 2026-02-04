@@ -1,34 +1,19 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
-import { CompareSkillsArgsSchema } from '../types'
+import { CompareSkillsArgsSchema, CompareSkillsPromptArgsShape } from '../types'
 import type { SkillsListData } from '@/validation/content.schemas'
 
 export function registerCompareSkills(server: McpServer) {
   server.prompt(
     'compare_skills',
     'Compare portfolio skills against job requirements',
-    [
-      {
-        name: 'requiredSkills',
-        description: 'Comma-separated list of required skills for the job',
-        required: true,
-      },
-      {
-        name: 'niceToHave',
-        description: 'Comma-separated list of nice-to-have skills',
-        required: false,
-      },
-    ],
+    CompareSkillsPromptArgsShape,
     async (args) => {
       // Parse comma-separated strings into arrays
-      const requiredSkills =
-        typeof args.requiredSkills === 'string'
-          ? args.requiredSkills.split(',').map((s: string) => s.trim())
-          : args.requiredSkills
-      const niceToHave =
-        typeof args.niceToHave === 'string'
-          ? args.niceToHave.split(',').map((s: string) => s.trim())
-          : args.niceToHave
+      const requiredSkills = args.requiredSkills.split(',').map((s: string) => s.trim())
+      const niceToHave = args.niceToHave
+        ? args.niceToHave.split(',').map((s: string) => s.trim())
+        : undefined
 
       const params = CompareSkillsArgsSchema.parse({
         requiredSkills,
