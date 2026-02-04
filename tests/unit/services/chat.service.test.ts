@@ -28,12 +28,6 @@ const mockLLMProvider = {
   sendMessage: jest.fn(),
 }
 
-// Mock obfuscation service
-const mockObfuscationService = {
-  obfuscate: jest.fn(),
-}
-
-
 jest.unstable_mockModule('@/repositories', () => ({
   chatRepository: mockChatRepository,
 }))
@@ -50,11 +44,6 @@ jest.unstable_mockModule('@/llm', () => ({
   getLLMProvider: () => mockLLMProvider,
 }))
 
-jest.unstable_mockModule('@/services/obfuscation.service', () => ({
-  obfuscationService: mockObfuscationService,
-}))
-
-
 describe('ChatService', () => {
   let chatService: typeof import('@/services/chat.service').chatService
 
@@ -63,10 +52,6 @@ describe('ChatService', () => {
 
     // Default mock implementations
     mockRateLimiter.consume.mockResolvedValue({ allowed: true, remaining: 5 })
-    mockObfuscationService.obfuscate.mockImplementation((text: string) => ({
-      text,
-      tokens: [],
-    }))
     mockLLMProvider.sendMessage.mockResolvedValue({
       content: 'Hello! How can I help you?',
       tokensUsed: 50,
@@ -245,65 +230,6 @@ describe('ChatService', () => {
       ).rejects.toThrow()
 
       expect(mockRateLimiter.emitRateLimitEvent).toHaveBeenCalled()
-    })
-
-    it('should obfuscate user message', async () => {
-      const session = createSession()
-      mockChatRepository.findActiveSession.mockResolvedValue(session)
-      mockChatRepository.addMessage.mockResolvedValue(createMessage({ role: 'assistant' }))
-      mockChatRepository.getMessages.mockResolvedValue([])
-
-      mockObfuscationService.obfuscate.mockReturnValue({
-        text: 'My email is [EMAIL_0]',
-        tokens: [{ type: 'email', original: 'test@example.com', placeholder: '[EMAIL_0]' }],
-      })
-
-      await chatService.sendMessage({
-        visitorId: 'visitor-123',
-        ipHash: 'hash-123',
-        message: 'My email is test@example.com',
-      })
-
-      expect(mockObfuscationService.obfuscate).toHaveBeenCalledWith('My email is test@example.com')
-      // User message should be stored obfuscated
-      expect(mockChatRepository.addMessage).toHaveBeenCalledWith(
-        session.id,
-        expect.objectContaining({ content: 'My email is [EMAIL_0]' })
-      )
-    })
-
-    it('should deobfuscate LLM response if it contains placeholders', async () => {
-      const session = createSession()
-      const assistantMessage = createMessage({ role: 'assistant' })
-
-      mockChatRepository.findActiveSession.mockResolvedValue(session)
-      mockChatRepository.addMessage.mockResolvedValue(assistantMessage)
-      mockChatRepository.getMessages.mockResolvedValue([])
-
-      mockObfuscationService.obfuscate.mockReturnValue({
-        text: 'My email is [EMAIL_0]',
-        tokens: [{ type: 'email', original: 'test@example.com', placeholder: '[EMAIL_0]' }],
-      })
-
-      mockLLMProvider.sendMessage.mockResolvedValue({
-        content: 'I see your email is [EMAIL_0]',
-        tokensUsed: 50,
-        model: 'gpt-4',
-      })
-
-      await chatService.sendMessage({
-        visitorId: 'visitor-123',
-        ipHash: 'hash-123',
-        message: 'My email is test@example.com',
-      })
-
-      // The response should have deobfuscated content
-      expect(mockChatRepository.addMessage).toHaveBeenLastCalledWith(
-        session.id,
-        expect.objectContaining({
-          content: 'I see your email is test@example.com',
-        })
-      )
     })
 
     it('should emit chat:message_sent event', async () => {
