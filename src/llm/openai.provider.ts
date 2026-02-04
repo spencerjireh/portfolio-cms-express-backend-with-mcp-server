@@ -1,6 +1,7 @@
 import { env } from '@/config/env'
 import { LLMError } from '@/errors/app-error'
 import { llmRequestsTotal, llmRequestDuration } from '@/observability/metrics'
+import { withRetry } from './retry'
 import type { LLMProvider, LLMMessage, LLMOptions, LLMResponse, ToolCall } from './types'
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
@@ -80,12 +81,16 @@ export class OpenAIProvider implements LLMProvider {
   private readonly defaultModel: string
   private readonly defaultMaxTokens: number
   private readonly defaultTemperature: number
+  private readonly requestTimeoutMs: number
+  private readonly maxRetries: number
 
   constructor() {
     this.apiKey = env.LLM_API_KEY
     this.defaultModel = env.LLM_MODEL
     this.defaultMaxTokens = env.LLM_MAX_TOKENS
     this.defaultTemperature = env.LLM_TEMPERATURE
+    this.requestTimeoutMs = env.LLM_REQUEST_TIMEOUT_MS
+    this.maxRetries = env.LLM_MAX_RETRIES
   }
 
   /**
@@ -135,71 +140,96 @@ export class OpenAIProvider implements LLMProvider {
       }))
     }
 
-    let response: Response
+    // Wrap the fetch call with retry logic
+    const executeRequest = async (): Promise<LLMResponse> => {
+      // Create abort controller for timeout
+      const abortController = new AbortController()
+      const timeoutId = setTimeout(() => abortController.abort(), this.requestTimeoutMs)
+
+      let response: Response
+
+      try {
+        response = await fetch(OPENAI_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify(requestBody),
+          signal: abortController.signal,
+        })
+      } catch (error) {
+        clearTimeout(timeoutId)
+        const err = error as Error
+
+        // Handle abort/timeout errors
+        if (err.name === 'AbortError') {
+          throw new LLMError(`Request timeout after ${this.requestTimeoutMs}ms`, 'openai')
+        }
+
+        throw new LLMError(`Network error: ${err.message}`, 'openai')
+      } finally {
+        clearTimeout(timeoutId)
+      }
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`
+
+        try {
+          const errorBody = (await response.json()) as OpenAIErrorResponse
+          if (errorBody.error?.message) {
+            errorMessage = errorBody.error.message
+          }
+        } catch {
+          // Use HTTP status as error message
+        }
+
+        throw new LLMError(errorMessage, 'openai')
+      }
+
+      const data = (await response.json()) as OpenAIResponse
+
+      if (!data.choices || data.choices.length === 0) {
+        throw new LLMError('No response from model', 'openai')
+      }
+
+      const choice = data.choices[0]
+      const content = choice.message?.content ?? ''
+
+      // Build response with optional tool_calls
+      const llmResponse: LLMResponse = {
+        content,
+        tokensUsed: data.usage?.total_tokens ?? 0,
+        model: data.model,
+      }
+
+      // Include tool_calls if present
+      if (choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
+        llmResponse.tool_calls = choice.message.tool_calls as ToolCall[]
+      }
+
+      return llmResponse
+    }
 
     try {
-      response = await fetch(OPENAI_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify(requestBody),
+      const result = await withRetry(executeRequest, {
+        maxRetries: this.maxRetries,
+        initialDelayMs: 1000,
+        maxDelayMs: 10000,
+        backoffMultiplier: 2,
       })
+
+      const duration = Number(process.hrtime.bigint() - start) / 1e9
+      llmRequestsTotal.inc({ model, status: 'success' })
+      llmRequestDuration.observe({ model }, duration)
+
+      return result
     } catch (error) {
       const duration = Number(process.hrtime.bigint() - start) / 1e9
       llmRequestsTotal.inc({ model, status: 'error' })
       llmRequestDuration.observe({ model }, duration)
-      throw new LLMError(`Network error: ${(error as Error).message}`, 'openai')
+      throw error
     }
-
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}`
-
-      try {
-        const errorBody = (await response.json()) as OpenAIErrorResponse
-        if (errorBody.error?.message) {
-          errorMessage = errorBody.error.message
-        }
-      } catch {
-        // Use HTTP status as error message
-      }
-
-      const duration = Number(process.hrtime.bigint() - start) / 1e9
-      llmRequestsTotal.inc({ model, status: 'error' })
-      llmRequestDuration.observe({ model }, duration)
-      throw new LLMError(errorMessage, 'openai')
-    }
-
-    const data = (await response.json()) as OpenAIResponse
-
-    if (!data.choices || data.choices.length === 0) {
-      const duration = Number(process.hrtime.bigint() - start) / 1e9
-      llmRequestsTotal.inc({ model, status: 'error' })
-      llmRequestDuration.observe({ model }, duration)
-      throw new LLMError('No response from model', 'openai')
-    }
-
-    const choice = data.choices[0]
-    const content = choice.message?.content ?? ''
-
-    const duration = Number(process.hrtime.bigint() - start) / 1e9
-    llmRequestsTotal.inc({ model, status: 'success' })
-    llmRequestDuration.observe({ model }, duration)
-
-    // Build response with optional tool_calls
-    const llmResponse: LLMResponse = {
-      content,
-      tokensUsed: data.usage?.total_tokens ?? 0,
-      model: data.model,
-    }
-
-    // Include tool_calls if present
-    if (choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
-      llmResponse.tool_calls = choice.message.tool_calls as ToolCall[]
-    }
-
-    return llmResponse
   }
 }
 

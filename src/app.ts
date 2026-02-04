@@ -2,6 +2,7 @@ import express from 'express'
 import compression from 'compression'
 import { requestIdMiddleware } from './middleware/request-id'
 import { requestContextMiddleware } from './middleware/request-context'
+import { requestTimeoutMiddleware } from './middleware/request-timeout'
 import { securityMiddleware } from './middleware/security'
 import { corsMiddleware } from './middleware/cors'
 import { httpLogger } from './lib/logger'
@@ -14,6 +15,7 @@ import { chatRouter } from './routes/v1/chat'
 import { adminContentRouter } from './routes/v1/admin/content'
 import { adminChatRouter } from './routes/v1/admin/chat'
 import { metricsMiddleware } from './observability'
+import { env } from './config/env'
 
 export function createApp() {
   const app = express()
@@ -24,6 +26,14 @@ export function createApp() {
   app.use(corsMiddleware())
   app.use(compression())
   app.use(express.json({ limit: '100kb' }))
+  app.use(
+    requestTimeoutMiddleware({
+      defaultTimeout: env.REQUEST_TIMEOUT_MS,
+      routeTimeouts: {
+        '/api/v1/chat': env.CHAT_REQUEST_TIMEOUT_MS,
+      },
+    })
+  )
   app.use(httpLogger)
   app.use(metricsMiddleware())
 
