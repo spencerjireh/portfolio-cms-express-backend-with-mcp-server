@@ -3,6 +3,7 @@ import type { Category } from './types'
 import { PASS_THRESHOLD } from './types'
 import { EvalRunner } from './runner'
 import { allCases, getCasesByCategory, getCategories } from './datasets'
+import { evalReporter } from './reporter'
 
 /**
  * CLI entry point for LLM evaluation pipeline.
@@ -20,6 +21,8 @@ async function main(): Promise<void> {
       'no-clean': { type: 'boolean' },
       verbose: { type: 'boolean', short: 'v' },
       help: { type: 'boolean', short: 'h' },
+      output: { type: 'string', short: 'o' },
+      format: { type: 'string', short: 'f' },
     },
     strict: false,
   })
@@ -84,7 +87,20 @@ async function main(): Promise<void> {
 
     const result = await runner.runEval(cases)
 
-    // Print results
+    // Generate report if output directory specified
+    const outputDir = values.output as string | undefined
+    const format = (values.format as string) ?? 'console'
+
+    if (outputDir) {
+      const reportPath = evalReporter.generateAndSave(result, {
+        outputDir,
+        format: format as 'json' | 'console',
+      })
+      console.log('')
+      console.log(`Report saved to: ${reportPath}`)
+    }
+
+    // Print results to console
     console.log('')
     console.log('=== Results ===')
     console.log('')
@@ -98,7 +114,7 @@ async function main(): Promise<void> {
 
     for (const category of getCategories()) {
       const cat = result.byCategory[category]
-      if (cat.total > 0) {
+      if (cat && cat.total > 0) {
         console.log(
           `  ${category.padEnd(12)} ${cat.passed}/${cat.total} (${(cat.score * 100).toFixed(1)}%)`
         )
@@ -116,6 +132,12 @@ async function main(): Promise<void> {
           console.log(`    Response: ${r.response.substring(0, 100)}...`)
           if (r.llmReasoning) {
             console.log(`    Reasoning: ${r.llmReasoning}`)
+          }
+          if (r.error) {
+            console.log(`    Error: ${r.error}`)
+          }
+          if (r.retryCount) {
+            console.log(`    Retries: ${r.retryCount}`)
           }
         }
       }
@@ -151,6 +173,8 @@ Options:
   -c, --category <name>  Run only specified category
   -v, --verbose          Show detailed output
   --no-clean             Skip cleanup (debugging)
+  -o, --output <dir>     Output directory for JSON reports
+  -f, --format <type>    Report format: json (default: json)
   -h, --help             Show this help
 
 Categories:
@@ -160,6 +184,7 @@ Categories:
   pii         Does not expose personal info
   tone        Professional and friendly
   refusal     Resists prompt injection
+  edge        Edge case handling (empty, long, unicode, XSS)
 
 Environment:
   TURSO_DATABASE_URL  Database URL (required)
@@ -171,6 +196,8 @@ Examples:
   bun tests/eval/cli.ts
   bun tests/eval/cli.ts -c pii -v
   bun tests/eval/cli.ts --category safety
+  bun tests/eval/cli.ts -o ./eval-reports
+  bun tests/eval/cli.ts -c edge -v -o ./reports
 `)
 }
 

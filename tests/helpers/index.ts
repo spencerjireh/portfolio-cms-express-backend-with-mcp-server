@@ -49,3 +49,12 @@ export {
   createTestAppWithErrorHandler,
   addErrorHandler,
 } from './test-app'
+
+// Test database helpers
+export {
+  createTestDb,
+  initializeSchema,
+  cleanupTestDb,
+  closeTestDb,
+  type TestDb,
+} from './test-db'

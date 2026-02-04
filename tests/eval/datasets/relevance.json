@@ -28,5 +28,55 @@
       { "type": "contains", "value": "typescript" }
     ],
     "groundTruth": "Spencer specializes in TypeScript and cloud technologies with over 5 years of experience."
+  },
+  {
+    "id": "rel-004",
+    "category": "relevance",
+    "input": "What programming languages does Spencer know?",
+    "expectedBehavior": "Response should list programming languages from skills data",
+    "assertions": [
+      { "type": "regex", "value": "typescript|javascript|python", "flags": "i" }
+    ],
+    "groundTruth": "Spencer is proficient in TypeScript, JavaScript, and Python."
+  },
+  {
+    "id": "rel-005",
+    "category": "relevance",
+    "input": "What databases has Spencer worked with?",
+    "expectedBehavior": "Response should mention database technologies from skills",
+    "assertions": [
+      { "type": "regex", "value": "postgresql|redis|sqlite|turso", "flags": "i" }
+    ],
+    "groundTruth": "Spencer has experience with PostgreSQL, Redis, and SQLite/Turso databases."
+  },
+  {
+    "id": "rel-006",
+    "category": "relevance",
+    "input": "Does Spencer have cloud experience?",
+    "expectedBehavior": "Response should mention cloud platforms and experience",
+    "assertions": [
+      { "type": "contains", "value": "aws" }
+    ],
+    "groundTruth": "Spencer has experience with AWS cloud services and infrastructure."
+  },
+  {
+    "id": "rel-007",
+    "category": "relevance",
+    "input": "What is Spencer's educational background?",
+    "expectedBehavior": "Response should address education or indicate if not available in portfolio",
+    "assertions": [
+      { "type": "lengthMin", "value": 20 }
+    ],
+    "groundTruth": "Information about Spencer's formal education background."
+  },
+  {
+    "id": "rel-008",
+    "category": "relevance",
+    "input": "Has Spencer contributed to any open source projects?",
+    "expectedBehavior": "Response should address open source work or mention GitHub portfolio",
+    "assertions": [
+      { "type": "regex", "value": "github|open.?source|project", "flags": "i" }
+    ],
+    "groundTruth": "Spencer has a GitHub portfolio with open source projects including Portfolio Backend."
   }
 ]

@@ -1,14 +1,25 @@
 /**
  * Evaluation categories for LLM responses.
  */
-export type Category = 'relevance' | 'accuracy' | 'safety' | 'pii' | 'tone' | 'refusal'
+export type Category = 'relevance' | 'accuracy' | 'safety' | 'pii' | 'tone' | 'refusal' | 'edge'
 
 /**
  * Assertion types for programmatic evaluation.
  */
+export type AssertionType =
+  | 'contains'
+  | 'notContains'
+  | 'regex'
+  | 'notRegex'
+  | 'lengthMin'
+  | 'lengthMax'
+  | 'startsWith'
+  | 'endsWith'
+
 export interface Assertion {
-  type: 'contains' | 'notContains'
-  value: string
+  type: AssertionType
+  value?: string | number
+  flags?: string // for regex (e.g., 'i' for case-insensitive)
   caseSensitive?: boolean
 }
 
@@ -46,6 +57,8 @@ export interface EvalResult {
   passed: boolean
   llmReasoning?: string
   durationMs: number
+  error?: string
+  retryCount?: number
 }
 
 /**
@@ -74,6 +87,7 @@ export const CATEGORY_WEIGHTS: Record<
   accuracy: { programmatic: 0.2, llmJudge: 0.3, embedding: 0.5 },
   tone: { programmatic: 0.0, llmJudge: 1.0, embedding: 0.0 },
   refusal: { programmatic: 0.3, llmJudge: 0.7, embedding: 0.0 },
+  edge: { programmatic: 0.5, llmJudge: 0.5, embedding: 0.0 },
 }
 
 /**

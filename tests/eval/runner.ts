@@ -10,6 +10,8 @@ import {
 } from './evaluators'
 
 const RATE_LIMIT_DELAY = 100 // ms between OpenAI calls
+const MAX_RETRIES = 3
+const INITIAL_RETRY_DELAY = 1000 // 1 second
 
 /**
  * Evaluation runner that seeds data, runs evaluations, and cleans up.
@@ -107,8 +109,11 @@ export class EvalRunner {
       console.log(`  Running: ${evalCase.id}`)
     }
 
-    // Call chat API
-    const response = await this.callChatApi(sessionId, evalCase.input)
+    // Call chat API with retry
+    const { response, retryCount: chatRetryCount } = await this.callChatApiWithRetry(
+      sessionId,
+      evalCase.input
+    )
 
     // Rate limit
     await this.delay(RATE_LIMIT_DELAY)
@@ -121,22 +126,23 @@ export class EvalRunner {
       embedding: null,
     }
     let llmReasoning: string | undefined
+    let totalRetryCount = chatRetryCount
 
     // Programmatic evaluation
     if (weights.programmatic > 0 && evalCase.assertions) {
       scores.programmatic = evaluateProgrammatic(response, evalCase.assertions)
     }
 
-    // LLM Judge evaluation
+    // LLM Judge evaluation with retry
     if (weights.llmJudge > 0) {
-      const judgeResult = await evaluateLlmJudge(
-        this.openaiKey,
+      const judgeResult = await this.callLlmJudgeWithRetry(
         evalCase.input,
         response,
         evalCase.expectedBehavior
       )
       scores.llmJudge = judgeResult.score
       llmReasoning = judgeResult.reasoning
+      totalRetryCount += judgeResult.retryCount
       await this.delay(RATE_LIMIT_DELAY)
     }
 
@@ -159,6 +165,7 @@ export class EvalRunner {
       passed: compositeScore >= PASS_THRESHOLD,
       llmReasoning,
       durationMs,
+      retryCount: totalRetryCount > 0 ? totalRetryCount : undefined,
     }
   }
 
@@ -183,7 +190,8 @@ export class EvalRunner {
           console.log(`    [${status}] ${result.compositeScore.toFixed(2)}`)
         }
       } catch (error) {
-        console.error(`  Error on ${evalCase.id}:`, error)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        console.error(`  Error on ${evalCase.id}:`, errorMessage)
         results.push({
           caseId: evalCase.id,
           category: evalCase.category,
@@ -193,6 +201,7 @@ export class EvalRunner {
           compositeScore: 0,
           passed: false,
           durationMs: 0,
+          error: errorMessage,
         })
       }
     }
@@ -251,7 +260,7 @@ export class EvalRunner {
   private groupByCategory(
     results: EvalResult[]
   ): Record<Category, { total: number; passed: number; score: number }> {
-    const categories: Category[] = ['relevance', 'accuracy', 'safety', 'pii', 'tone', 'refusal']
+    const categories: Category[] = ['relevance', 'accuracy', 'safety', 'pii', 'tone', 'refusal', 'edge']
     const byCategory = {} as Record<Category, { total: number; passed: number; score: number }>
 
     for (const category of categories) {
@@ -277,6 +286,69 @@ export class EvalRunner {
    */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  /**
+   * Calls the chat API with exponential backoff retry.
+   */
+  private async callChatApiWithRetry(
+    sessionId: string,
+    message: string
+  ): Promise<{ response: string; retryCount: number }> {
+    let lastError: Error | null = null
+    let retryCount = 0
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await this.callChatApi(sessionId, message)
+        return { response, retryCount }
+      } catch (error) {
+        lastError = error as Error
+        retryCount = attempt
+
+        if (attempt < MAX_RETRIES) {
+          const delayMs = INITIAL_RETRY_DELAY * Math.pow(2, attempt)
+          if (this.verbose) {
+            console.log(`    Retry ${attempt + 1}/${MAX_RETRIES} after ${delayMs}ms...`)
+          }
+          await this.delay(delayMs)
+        }
+      }
+    }
+
+    throw lastError ?? new Error('Chat API call failed after retries')
+  }
+
+  /**
+   * Calls the LLM judge with exponential backoff retry.
+   */
+  private async callLlmJudgeWithRetry(
+    input: string,
+    response: string,
+    expectedBehavior: string
+  ): Promise<{ score: number; reasoning: string; retryCount: number }> {
+    let lastError: Error | null = null
+    let retryCount = 0
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const result = await evaluateLlmJudge(this.openaiKey, input, response, expectedBehavior)
+        return { ...result, retryCount }
+      } catch (error) {
+        lastError = error as Error
+        retryCount = attempt
+
+        if (attempt < MAX_RETRIES) {
+          const delayMs = INITIAL_RETRY_DELAY * Math.pow(2, attempt)
+          if (this.verbose) {
+            console.log(`    LLM Judge retry ${attempt + 1}/${MAX_RETRIES} after ${delayMs}ms...`)
+          }
+          await this.delay(delayMs)
+        }
+      }
+    }
+
+    throw lastError ?? new Error('LLM Judge call failed after retries')
   }
 
   /**

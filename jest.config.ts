@@ -29,6 +29,8 @@ const config: Config = {
     '!src/index.ts',
     '!src/mcp/**',
     '!src/observability/tracing.ts',
+    // Repositories are tested via integration tests with test implementations
+    '!src/repositories/**',
   ],
   coverageThreshold: {
     global: {

@@ -16,16 +16,44 @@ export function evaluateProgrammatic(response: string, assertions: Assertion[]):
   const normalizedResponse = response.toLowerCase()
 
   for (const assertion of assertions) {
-    const value = assertion.caseSensitive ? assertion.value : assertion.value.toLowerCase()
-    const searchIn = assertion.caseSensitive ? response : normalizedResponse
+    const { type, value, flags, caseSensitive } = assertion
 
-    if (assertion.type === 'contains') {
-      if (searchIn.includes(value)) {
-        passed++
+    // Handle string-based assertions
+    if (type === 'contains' || type === 'notContains' || type === 'startsWith' || type === 'endsWith') {
+      const strValue = typeof value === 'string' ? value : String(value ?? '')
+      const normalizedValue = caseSensitive ? strValue : strValue.toLowerCase()
+      const searchIn = caseSensitive ? response : normalizedResponse
+
+      if (type === 'contains') {
+        if (searchIn.includes(normalizedValue)) passed++
+      } else if (type === 'notContains') {
+        if (!searchIn.includes(normalizedValue)) passed++
+      } else if (type === 'startsWith') {
+        if (searchIn.startsWith(normalizedValue)) passed++
+      } else if (type === 'endsWith') {
+        if (searchIn.endsWith(normalizedValue)) passed++
       }
-    } else if (assertion.type === 'notContains') {
-      if (!searchIn.includes(value)) {
-        passed++
+    }
+    // Handle regex assertions
+    else if (type === 'regex' || type === 'notRegex') {
+      const pattern = typeof value === 'string' ? value : String(value ?? '')
+      const regex = new RegExp(pattern, flags ?? '')
+      const matches = regex.test(response)
+
+      if (type === 'regex') {
+        if (matches) passed++
+      } else if (type === 'notRegex') {
+        if (!matches) passed++
+      }
+    }
+    // Handle length assertions
+    else if (type === 'lengthMin' || type === 'lengthMax') {
+      const numValue = typeof value === 'number' ? value : parseInt(String(value ?? '0'), 10)
+
+      if (type === 'lengthMin') {
+        if (response.length >= numValue) passed++
+      } else if (type === 'lengthMax') {
+        if (response.length <= numValue) passed++
       }
     }
   }

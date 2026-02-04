@@ -21,6 +21,7 @@ export const allCases: EvalCase[] = [
   ...loadJson<EvalCase[]>('pii.json'),
   ...loadJson<EvalCase[]>('tone.json'),
   ...loadJson<EvalCase[]>('refusal.json'),
+  ...loadJson<EvalCase[]>('edge-cases.json'),
 ]
 
 /**
@@ -34,5 +35,5 @@ export function getCasesByCategory(category: Category): EvalCase[] {
  * Get all available categories.
  */
 export function getCategories(): Category[] {
-  return ['relevance', 'accuracy', 'safety', 'pii', 'tone', 'refusal']
+  return ['relevance', 'accuracy', 'safety', 'pii', 'tone', 'refusal', 'edge']
 }
