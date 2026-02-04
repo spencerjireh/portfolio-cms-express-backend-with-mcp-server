@@ -37,7 +37,7 @@ bun run smoke:openai           # OpenAI only
 
 # LLM Evaluation
 bun run eval                   # Full evaluation suite
-bun run eval:safety            # Single category
+bun run eval:safety            # Single category (relevance, accuracy, safety, pii, tone, refusal)
 
 # MCP Server
 bun run mcp                    # Start MCP server (stdio transport)
@@ -84,10 +84,14 @@ src/
 ### Chat Flow
 
 1. Rate limit check (token bucket per IP)
-2. PII obfuscation (email, phone, SSN patterns replaced with tokens)
-3. LLM call with tool use (list_content, get_content, search_content)
-4. PII deobfuscation in response
-5. Message persistence
+2. LLM call with tool use (list_content, get_content, search_content)
+3. Message persistence
+
+### MCP Server Tools
+
+MCP server (`src/mcp/`) exposes a superset of chat tools:
+- Read: list_content, get_content, search_content (shared with chat)
+- Write: create_content, update_content, delete_content (MCP only)
 
 ### Path Alias
 
@@ -96,7 +100,7 @@ src/
 ## Testing
 
 - Jest with ts-jest ESM preset - requires `NODE_OPTIONS='--experimental-vm-modules'`
-- Test helpers in `tests/helpers/`: test-db, test-factories, mock-cache, mock-llm, test-app
+- Test helpers in `tests/helpers/`: test-factories, mock-cache, mock-llm, mock-env, test-app
 - Coverage thresholds: 80% global, 100% for admin-auth and rate-limiter
 - Integration tests use in-memory SQLite via test-db helper
 
