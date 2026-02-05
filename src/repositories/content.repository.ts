@@ -152,7 +152,10 @@ export class ContentRepository {
       createdAt: now,
     }
 
-    await db.batch([db.insert(content).values(newContent), db.insert(contentHistory).values(historyEntry)])
+    await db.batch([
+      db.insert(content).values(newContent),
+      db.insert(contentHistory).values(historyEntry),
+    ])
 
     return {
       ...newContent,
@@ -257,7 +260,11 @@ export class ContentRepository {
       .offset(offset)
   }
 
-  async restoreVersion(id: string, version: number, changedBy?: string): Promise<ContentWithData | null> {
+  async restoreVersion(
+    id: string,
+    version: number,
+    changedBy?: string
+  ): Promise<ContentWithData | null> {
     const existing = await this.findById(id)
     if (!existing) return null
 

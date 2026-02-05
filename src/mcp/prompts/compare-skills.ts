@@ -84,7 +84,9 @@ ${missingNice.length > 0 ? missingNice.map((s) => `- ${s}`).join('\n') : '- None
 ${skillDetails.map((s) => `- ${s.name} (${s.category}${s.proficiency ? `, proficiency: ${s.proficiency}/5` : ''})`).join('\n')}
 `
 
-      const matchPercentage = Math.round((matchedRequired.length / params.requiredSkills.length) * 100)
+      const matchPercentage = Math.round(
+        (matchedRequired.length / params.requiredSkills.length) * 100
+      )
 
       return {
         messages: [

@@ -27,6 +27,8 @@ export type AssertionType =
   | 'toolNotCalled'
   | 'toolCallCount'
   | 'toolArgument'
+  | 'latencyMax'
+  | 'latencyMin'
 
 export interface Assertion {
   type: AssertionType
@@ -162,4 +164,8 @@ export interface EvalConfig {
   openaiKey: string
   apiBaseUrl?: string
   verbose?: boolean
+  /** LLM judge model (default: EVAL_JUDGE_MODEL env var or 'gpt-4o-mini') */
+  judgeModel?: string
+  /** Path to save results JSON (enables regression tracking) */
+  resultsPath?: string
 }

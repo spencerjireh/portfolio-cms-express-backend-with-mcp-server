@@ -66,11 +66,15 @@ export const CompareSkillsPromptArgsShape = {
 
 export const ExplainProjectPromptArgsShape = {
   slug: z.string().describe('The project slug to explain'),
-  depth: z.enum(['overview', 'detailed', 'deep-dive']).describe('Level of detail: overview, detailed, or deep-dive'),
+  depth: z
+    .enum(['overview', 'detailed', 'deep-dive'])
+    .describe('Level of detail: overview, detailed, or deep-dive'),
 }
 
 export const SummarizePortfolioPromptArgsShape = {
-  audience: z.enum(['recruiter', 'technical', 'general']).describe('Target audience: recruiter, technical, or general'),
+  audience: z
+    .enum(['recruiter', 'technical', 'general'])
+    .describe('Target audience: recruiter, technical, or general'),
 }
 
 // Type exports

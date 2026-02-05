@@ -156,4 +156,69 @@ describe('OpenAI Adapter', () => {
       expect(parsed.error).toBe('Invalid JSON arguments')
     })
   })
+
+  describe('error handling', () => {
+    it('should return error result when Zod validation fails', async () => {
+      const { ZodError } = await import('zod')
+      mockListContent.mockRejectedValue(
+        new ZodError([
+          {
+            code: 'invalid_type',
+            expected: 'string',
+            received: 'number',
+            path: ['type'],
+            message: 'Expected string, received number',
+          },
+        ])
+      )
+
+      const result = await executeToolCall({
+        id: 'call_123',
+        type: 'function',
+        function: {
+          name: 'list_content',
+          arguments: JSON.stringify({ type: 123 }),
+        },
+      })
+
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(false)
+      expect(parsed.error).toContain('Invalid tool arguments')
+      expect(parsed.error).toContain('type')
+    })
+
+    it('should return error result when database throws', async () => {
+      mockGetContent.mockRejectedValue(new Error('Database connection failed'))
+
+      const result = await executeToolCall({
+        id: 'call_123',
+        type: 'function',
+        function: {
+          name: 'get_content',
+          arguments: JSON.stringify({ type: 'project', slug: 'test' }),
+        },
+      })
+
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(false)
+      expect(parsed.error).toBe('Tool execution failed: Database connection failed')
+    })
+
+    it('should handle non-Error throws gracefully', async () => {
+      mockSearchContent.mockRejectedValue('string error')
+
+      const result = await executeToolCall({
+        id: 'call_123',
+        type: 'function',
+        function: {
+          name: 'search_content',
+          arguments: JSON.stringify({ query: 'test' }),
+        },
+      })
+
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(false)
+      expect(parsed.error).toBe('Tool execution failed: Unknown error')
+    })
+  })
 })

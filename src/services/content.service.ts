@@ -31,7 +31,9 @@ class ContentService {
   /**
    * Get all published content, optionally filtered by type.
    */
-  async getPublishedContent(options?: ContentListOptions): Promise<ServiceResponse<ContentWithData[]>> {
+  async getPublishedContent(
+    options?: ContentListOptions
+  ): Promise<ServiceResponse<ContentWithData[]>> {
     const data = await contentRepository.findPublished(options?.type)
     const etag = generateETag(data)
     return { data, etag }
@@ -41,7 +43,10 @@ class ContentService {
    * Get a single content item by type and slug.
    * Throws NotFoundError if not found or not published.
    */
-  async getByTypeAndSlug(type: ContentType, slug: string): Promise<ServiceResponse<ContentWithData>> {
+  async getByTypeAndSlug(
+    type: ContentType,
+    slug: string
+  ): Promise<ServiceResponse<ContentWithData>> {
     const content = await contentRepository.findBySlug(type, slug)
 
     if (!content) {
@@ -280,9 +285,16 @@ class ContentService {
 
     // Check slug uniqueness if changing
     if (dto.slug && dto.slug !== existing.slug) {
-      const slugExists = await contentRepository.slugExists(existing.type as ContentType, dto.slug, id)
+      const slugExists = await contentRepository.slugExists(
+        existing.type as ContentType,
+        dto.slug,
+        id
+      )
       if (slugExists) {
-        throw new ConflictError(`Slug '${dto.slug}' already exists for type '${existing.type}'`, 'slug')
+        throw new ConflictError(
+          `Slug '${dto.slug}' already exists for type '${existing.type}'`,
+          'slug'
+        )
       }
     }
 
@@ -307,7 +319,8 @@ class ContentService {
     if (dto.slug !== undefined && dto.slug !== existing.slug) changedFields.push('slug')
     if (dto.data !== undefined) changedFields.push('data')
     if (dto.status !== undefined && dto.status !== existing.status) changedFields.push('status')
-    if (dto.sortOrder !== undefined && dto.sortOrder !== existing.sortOrder) changedFields.push('sortOrder')
+    if (dto.sortOrder !== undefined && dto.sortOrder !== existing.sortOrder)
+      changedFields.push('sortOrder')
 
     eventEmitter.emit('content:updated', {
       id: data.id,
@@ -324,11 +337,7 @@ class ContentService {
   /**
    * Delete content (soft or hard delete).
    */
-  async deleteContent(
-    id: string,
-    hard: boolean,
-    changedBy: string
-  ): Promise<{ success: boolean }> {
+  async deleteContent(id: string, hard: boolean, changedBy: string): Promise<{ success: boolean }> {
     // Get content type before deletion for event emission
     const existing = await contentRepository.findByIdIncludingDeleted(id)
     if (!existing) {

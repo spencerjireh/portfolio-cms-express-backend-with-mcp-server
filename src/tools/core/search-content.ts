@@ -6,7 +6,9 @@ import type { ToolResult, SearchContentResult, ContentItem } from '../types'
  * Searches content by query across title, description, and name fields.
  * Core function used by both MCP server and OpenAI function calling.
  */
-export async function searchContent(input: SearchContentInput): Promise<ToolResult<SearchContentResult>> {
+export async function searchContent(
+  input: SearchContentInput
+): Promise<ToolResult<SearchContentResult>> {
   const params = SearchContentInputSchema.parse(input)
 
   // Fetch published content (optionally filtered by type)
@@ -28,7 +30,11 @@ export async function searchContent(input: SearchContentInput): Promise<ToolResu
 
     // Check tags array if present
     if (Array.isArray(data.tags)) {
-      if (data.tags.some((tag: unknown) => typeof tag === 'string' && tag.toLowerCase().includes(query))) {
+      if (
+        data.tags.some(
+          (tag: unknown) => typeof tag === 'string' && tag.toLowerCase().includes(query)
+        )
+      ) {
         return true
       }
     }
@@ -39,7 +45,11 @@ export async function searchContent(input: SearchContentInput): Promise<ToolResu
         if (typeof subItem === 'object' && subItem !== null) {
           for (const field of searchableFields) {
             if (typeof (subItem as Record<string, unknown>)[field] === 'string') {
-              if (((subItem as Record<string, unknown>)[field] as string).toLowerCase().includes(query)) {
+              if (
+                ((subItem as Record<string, unknown>)[field] as string)
+                  .toLowerCase()
+                  .includes(query)
+              ) {
                 return true
               }
             }

@@ -24,7 +24,10 @@ export async function createCache(): Promise<CacheProvider> {
       logger.info('Using Redis cache provider')
       return cacheInstance
     } catch (error) {
-      logger.warn({ error: (error as Error).message }, 'Redis connection failed, falling back to memory cache')
+      logger.warn(
+        { error: (error as Error).message },
+        'Redis connection failed, falling back to memory cache'
+      )
     }
   }
 

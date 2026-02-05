@@ -6,6 +6,7 @@ import { CircuitBreaker } from '@/resilience/circuit-breaker'
 import { getLLMProvider } from '@/llm'
 import type { LLMMessage } from '@/llm'
 import { chatToolDefinitions, executeToolCall } from '@/tools'
+import { logger } from '@/lib/logger'
 import {
   SendMessageRequestSchema,
   SessionIdParamSchema,
@@ -162,10 +163,11 @@ class ChatService {
 
     // 5. Call LLM with tool loop
     const llmProvider = getLLMProvider()
-    const { content: finalContent, tokensUsed, toolCalls } = await this.executeWithToolLoop(
-      llmProvider,
-      conversationHistory
-    )
+    const {
+      content: finalContent,
+      tokensUsed,
+      toolCalls,
+    } = await this.executeWithToolLoop(llmProvider, conversationHistory)
 
     // 6. Store assistant message
     const assistantMessage = await chatRepository.addMessage(session.id, {
@@ -220,7 +222,11 @@ class ChatService {
     totalTokensUsed += response.tokensUsed
 
     // Tool call loop
-    while (response.tool_calls && response.tool_calls.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
+    while (
+      response.tool_calls &&
+      response.tool_calls.length > 0 &&
+      iterations < MAX_TOOL_ITERATIONS
+    ) {
       // Add assistant message with tool_calls to history
       history.push({
         role: 'assistant',
@@ -230,7 +236,19 @@ class ChatService {
 
       // Execute tools and add results to history
       for (const toolCall of response.tool_calls) {
-        const result = await executeToolCall(toolCall)
+        let result: string
+        try {
+          result = await executeToolCall(toolCall)
+        } catch (error) {
+          logger.warn(
+            { err: error, toolName: toolCall.function.name, toolId: toolCall.id },
+            'Unexpected error in tool execution'
+          )
+          result = JSON.stringify({
+            success: false,
+            error: `Tool execution failed: ${toolCall.function.name}`,
+          })
+        }
 
         // Capture tool call for evaluation/debugging
         let parsedArgs: Record<string, unknown> = {}
@@ -273,13 +291,7 @@ class ChatService {
    * Lists chat sessions with optional filtering.
    */
   async listSessions(options?: SessionListOptions): Promise<ChatSession[]> {
-    const { status, limit = 50, offset = 0 } = options ?? {}
-
-    // The repository doesn't have a listSessions method, so we need to query directly
-    // For now, we'll return an empty array since the repository needs to be extended
-    // In a real implementation, you'd add this method to the repository
-    const sessions = await this.getSessionsFromRepository(status, limit, offset)
-    return sessions
+    return chatRepository.listSessions(options)
   }
 
   /**
@@ -343,30 +355,6 @@ class ChatService {
     return history
   }
 
-  /**
-   * Helper method to get sessions from repository.
-   * This is a workaround until the repository is extended with a proper list method.
-   */
-  private async getSessionsFromRepository(
-    status?: SessionStatus,
-    limit = 50,
-    offset = 0
-  ): Promise<ChatSession[]> {
-    // Import the db client and schema for direct query
-    const { db } = await import('@/db/client')
-    const { chatSessions } = await import('@/db/schema')
-    const { eq, desc } = await import('drizzle-orm')
-
-    let query = db.select().from(chatSessions).$dynamic()
-
-    if (status) {
-      query = query.where(eq(chatSessions.status, status))
-    }
-
-    const result = await query.orderBy(desc(chatSessions.lastActiveAt)).limit(limit).offset(offset)
-
-    return result
-  }
 }
 
 export const chatService = new ChatService()

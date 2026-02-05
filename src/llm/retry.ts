@@ -25,8 +25,13 @@ export function isRetryableError(error: Error): boolean {
     const message = error.message.toLowerCase()
 
     // Server errors (5xx)
-    if (message.includes('http 5') || message.includes('500') || message.includes('502') ||
-        message.includes('503') || message.includes('504')) {
+    if (
+      message.includes('http 5') ||
+      message.includes('500') ||
+      message.includes('502') ||
+      message.includes('503') ||
+      message.includes('504')
+    ) {
       return true
     }
 
@@ -36,9 +41,13 @@ export function isRetryableError(error: Error): boolean {
     }
 
     // Network errors
-    if (message.includes('network') || message.includes('connection') ||
-        message.includes('econnrefused') || message.includes('enotfound') ||
-        message.includes('etimedout')) {
+    if (
+      message.includes('network') ||
+      message.includes('connection') ||
+      message.includes('econnrefused') ||
+      message.includes('enotfound') ||
+      message.includes('etimedout')
+    ) {
       return true
     }
 
@@ -56,9 +65,14 @@ export function isRetryableError(error: Error): boolean {
 
   // Check for generic network errors
   const message = error.message.toLowerCase()
-  if (message.includes('fetch failed') || message.includes('network') ||
-      message.includes('econnrefused') || message.includes('enotfound') ||
-      message.includes('etimedout') || message.includes('socket hang up')) {
+  if (
+    message.includes('fetch failed') ||
+    message.includes('network') ||
+    message.includes('econnrefused') ||
+    message.includes('enotfound') ||
+    message.includes('etimedout') ||
+    message.includes('socket hang up')
+  ) {
     return true
   }
 
@@ -101,10 +115,7 @@ function sleep(ms: number): Promise<void> {
  * @returns The result of the function if successful
  * @throws The last error if all retries are exhausted
  */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options?: RetryOptions
-): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, options?: RetryOptions): Promise<T> {
   const maxRetries = options?.maxRetries ?? 3
   const initialDelayMs = options?.initialDelayMs ?? 1000
   const maxDelayMs = options?.maxDelayMs ?? 10000

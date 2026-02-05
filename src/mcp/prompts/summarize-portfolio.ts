@@ -1,7 +1,12 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
 import { SummarizePortfolioPromptArgsShape } from '../types'
-import type { ProjectData, SkillsListData, ExperienceListData, SiteConfigData } from '@/validation/content.schemas'
+import type {
+  ProjectData,
+  SkillsListData,
+  ExperienceListData,
+  SiteConfigData,
+} from '@/validation/content.schemas'
 
 export function registerSummarizePortfolio(server: McpServer) {
   server.prompt(
@@ -35,7 +40,10 @@ export function registerSummarizePortfolio(server: McpServer) {
       if (bundle.experiences.length > 0) {
         const expData = bundle.experiences[0].data as ExperienceListData
         experienceSummary = expData.items
-          .map((exp) => `- ${exp.role} at ${exp.company} (${exp.startDate} - ${exp.endDate ?? 'Present'})`)
+          .map(
+            (exp) =>
+              `- ${exp.role} at ${exp.company} (${exp.startDate} - ${exp.endDate ?? 'Present'})`
+          )
           .join('\n')
       }
 

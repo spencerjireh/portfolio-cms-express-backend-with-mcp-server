@@ -13,9 +13,10 @@ export class RedisCache implements CacheProvider {
   constructor(url: string) {
     // Enable TLS for cloud Redis providers (Upstash, etc.)
     const parsedUrl = new URL(url)
-    const isCloudRedis = parsedUrl.hostname.includes('upstash.io') ||
-                         parsedUrl.hostname.includes('redis.cloud') ||
-                         parsedUrl.protocol === 'rediss:'
+    const isCloudRedis =
+      parsedUrl.hostname.includes('upstash.io') ||
+      parsedUrl.hostname.includes('redis.cloud') ||
+      parsedUrl.protocol === 'rediss:'
 
     this.client = new Redis(url, {
       maxRetriesPerRequest: 3,

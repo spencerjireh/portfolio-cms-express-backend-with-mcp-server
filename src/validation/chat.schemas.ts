@@ -1,8 +1,14 @@
 import { z } from 'zod'
 
 export const SendMessageRequestSchema = z.object({
-  message: z.string().min(1, 'Message is required').max(2000, 'Message must be 2000 characters or less'),
-  visitorId: z.string().min(1, 'Visitor ID is required').max(100, 'Visitor ID must be 100 characters or less'),
+  message: z
+    .string()
+    .min(1, 'Message is required')
+    .max(2000, 'Message must be 2000 characters or less'),
+  visitorId: z
+    .string()
+    .min(1, 'Visitor ID is required')
+    .max(100, 'Visitor ID must be 100 characters or less'),
 })
 
 export type SendMessageRequest = z.infer<typeof SendMessageRequestSchema>

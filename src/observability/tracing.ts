@@ -10,13 +10,11 @@ export async function initializeTracing(): Promise<void> {
 
   try {
     const { NodeSDK } = await import('@opentelemetry/sdk-node')
-    const { getNodeAutoInstrumentations } = await import(
-      '@opentelemetry/auto-instrumentations-node'
-    )
+    const { getNodeAutoInstrumentations } =
+      await import('@opentelemetry/auto-instrumentations-node')
     const { resourceFromAttributes } = await import('@opentelemetry/resources')
-    const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = await import(
-      '@opentelemetry/semantic-conventions'
-    )
+    const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } =
+      await import('@opentelemetry/semantic-conventions')
 
     const sdk = new NodeSDK({
       resource: resourceFromAttributes({
@@ -35,7 +33,9 @@ export async function initializeTracing(): Promise<void> {
     logger.info('OpenTelemetry tracing initialized')
 
     process.on('SIGTERM', () => {
-      sdk.shutdown().catch((err) => logger.error({ error: err }, 'Failed to shutdown OpenTelemetry'))
+      sdk
+        .shutdown()
+        .catch((err) => logger.error({ error: err }, 'Failed to shutdown OpenTelemetry'))
     })
   } catch (error) {
     logger.warn({ error: (error as Error).message }, 'Failed to initialize OpenTelemetry tracing')

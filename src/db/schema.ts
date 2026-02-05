@@ -1,7 +1,14 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 // Content types for portfolio sections
-export const contentTypeEnum = ['project', 'experience', 'education', 'skill', 'about', 'contact'] as const
+export const contentTypeEnum = [
+  'project',
+  'experience',
+  'education',
+  'skill',
+  'about',
+  'contact',
+] as const
 export type ContentType = (typeof contentTypeEnum)[number]
 
 // Content status

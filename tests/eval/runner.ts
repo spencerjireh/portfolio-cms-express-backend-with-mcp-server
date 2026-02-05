@@ -1,4 +1,5 @@
 import { createClient, type Client } from '@libsql/client'
+import { writeFile } from 'node:fs/promises'
 import type {
   EvalCase,
   EvalConfig,
@@ -31,6 +32,8 @@ export class EvalRunner {
   private openaiKey: string
   private apiBaseUrl: string
   private verbose: boolean
+  private judgeModel?: string
+  private resultsPath?: string
 
   constructor(config: EvalConfig) {
     this.dbClient = createClient({
@@ -40,6 +43,8 @@ export class EvalRunner {
     this.openaiKey = config.openaiKey
     this.apiBaseUrl = config.apiBaseUrl ?? 'http://localhost:3000'
     this.verbose = config.verbose ?? false
+    this.judgeModel = config.judgeModel
+    this.resultsPath = config.resultsPath
   }
 
   /**
@@ -209,8 +214,34 @@ export class EvalRunner {
       await this.delay(RATE_LIMIT_DELAY)
     }
 
-    const compositeScore = computeComposite(scores, evalCase.category)
     const durationMs = Math.round(performance.now() - start)
+
+    // Evaluate latency assertions
+    const latencyAssertions =
+      evalCase.assertions?.filter((a) => a.type === 'latencyMax' || a.type === 'latencyMin') ?? []
+
+    if (latencyAssertions.length > 0) {
+      let latencyPassed = 0
+      for (const assertion of latencyAssertions) {
+        const threshold =
+          typeof assertion.value === 'number'
+            ? assertion.value
+            : parseInt(String(assertion.value ?? '0'), 10)
+
+        if (assertion.type === 'latencyMax' && durationMs <= threshold) latencyPassed++
+        if (assertion.type === 'latencyMin' && durationMs >= threshold) latencyPassed++
+      }
+
+      const latencyScore = latencyPassed / latencyAssertions.length
+      // Combine with existing programmatic score (average both)
+      if (scores.programmatic !== null) {
+        scores.programmatic = (scores.programmatic + latencyScore) / 2
+      } else {
+        scores.programmatic = latencyScore
+      }
+    }
+
+    const compositeScore = computeComposite(scores, evalCase.category)
 
     return {
       caseId: evalCase.id,
@@ -364,8 +395,34 @@ export class EvalRunner {
       await this.delay(RATE_LIMIT_DELAY)
     }
 
-    const compositeScore = computeComposite(scores, evalCase.category)
     const durationMs = Math.round(performance.now() - start)
+
+    // Evaluate latency assertions
+    const latencyAssertions =
+      assertions?.filter((a) => a.type === 'latencyMax' || a.type === 'latencyMin') ?? []
+
+    if (latencyAssertions.length > 0) {
+      let latencyPassed = 0
+      for (const assertion of latencyAssertions) {
+        const threshold =
+          typeof assertion.value === 'number'
+            ? assertion.value
+            : parseInt(String(assertion.value ?? '0'), 10)
+
+        if (assertion.type === 'latencyMax' && durationMs <= threshold) latencyPassed++
+        if (assertion.type === 'latencyMin' && durationMs >= threshold) latencyPassed++
+      }
+
+      const latencyScore = latencyPassed / latencyAssertions.length
+      // Combine with existing programmatic score (average both)
+      if (scores.programmatic !== null) {
+        scores.programmatic = (scores.programmatic + latencyScore) / 2
+      } else {
+        scores.programmatic = latencyScore
+      }
+    }
+
+    const compositeScore = computeComposite(scores, evalCase.category)
 
     return {
       caseId: evalCase.id,
@@ -432,13 +489,44 @@ export class EvalRunner {
     // Group by category
     const byCategory = this.groupByCategory(results)
 
-    return {
+    const runResult: EvalRunResult = {
       total: results.length,
       passed,
       failed,
       averageScore,
       byCategory,
       results,
+    }
+
+    // Save results for regression tracking if resultsPath is configured
+    if (this.resultsPath) {
+      await this.saveResults(runResult)
+    }
+
+    return runResult
+  }
+
+  /**
+   * Saves evaluation results to a JSON file for regression tracking.
+   */
+  private async saveResults(result: EvalRunResult): Promise<void> {
+    const output = {
+      timestamp: new Date().toISOString(),
+      commitSha: process.env.GITHUB_SHA ?? null,
+      summary: {
+        total: result.total,
+        passed: result.passed,
+        failed: result.failed,
+        averageScore: result.averageScore,
+      },
+      byCategory: result.byCategory,
+      judgeModel: this.judgeModel ?? process.env.EVAL_JUDGE_MODEL ?? 'gpt-4o-mini',
+    }
+
+    await writeFile(this.resultsPath!, JSON.stringify(output, null, 2))
+
+    if (this.verbose) {
+      console.log(`Results saved to ${this.resultsPath}`)
     }
   }
 
@@ -567,7 +655,13 @@ export class EvalRunner {
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const result = await evaluateLlmJudge(this.openaiKey, input, response, expectedBehavior)
+        const result = await evaluateLlmJudge(
+          this.openaiKey,
+          input,
+          response,
+          expectedBehavior,
+          this.judgeModel
+        )
         return { ...result, retryCount }
       } catch (error) {
         lastError = error as Error

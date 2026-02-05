@@ -82,7 +82,10 @@ export function idempotencyMiddleware(): RequestHandler {
               CacheTTL.IDEMPOTENCY
             )
             .catch((error) => {
-              logger.warn({ error: (error as Error).message }, 'Failed to cache idempotency response')
+              logger.warn(
+                { error: (error as Error).message },
+                'Failed to cache idempotency response'
+              )
             })
         }
 
@@ -92,7 +95,10 @@ export function idempotencyMiddleware(): RequestHandler {
       next()
     } catch (error) {
       // Graceful degradation - continue without idempotency if cache fails
-      logger.warn({ error: (error as Error).message }, 'Idempotency cache error, continuing without idempotency')
+      logger.warn(
+        { error: (error as Error).message },
+        'Idempotency cache error, continuing without idempotency'
+      )
       next()
     }
   }

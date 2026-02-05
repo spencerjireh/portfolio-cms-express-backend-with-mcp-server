@@ -48,7 +48,11 @@ export class ChatRepository {
       .select()
       .from(chatSessions)
       .where(
-        and(eq(chatSessions.visitorId, visitorId), eq(chatSessions.status, 'active'), sql`${chatSessions.expiresAt} > ${now}`)
+        and(
+          eq(chatSessions.visitorId, visitorId),
+          eq(chatSessions.status, 'active'),
+          sql`${chatSessions.expiresAt} > ${now}`
+        )
       )
       .orderBy(desc(chatSessions.lastActiveAt))
       .limit(1)
@@ -121,7 +125,30 @@ export class ChatRepository {
     return db
       .select()
       .from(chatSessions)
-      .where(and(eq(chatSessions.status, 'active'), lt(chatSessions.expiresAt, olderThan.toISOString())))
+      .where(
+        and(eq(chatSessions.status, 'active'), lt(chatSessions.expiresAt, olderThan.toISOString()))
+      )
+  }
+
+  async listSessions(options?: {
+    status?: SessionStatus
+    limit?: number
+    offset?: number
+  }): Promise<ChatSession[]> {
+    const conditions: ReturnType<typeof eq>[] = []
+
+    if (options?.status) {
+      conditions.push(eq(chatSessions.status, options.status))
+    }
+
+    const query = db
+      .select()
+      .from(chatSessions)
+      .orderBy(desc(chatSessions.lastActiveAt))
+      .limit(options?.limit ?? 50)
+      .offset(options?.offset ?? 0)
+
+    return conditions.length > 0 ? await query.where(and(...conditions)) : await query
   }
 
   async getStats(sessionId: string): Promise<ChatStats | null> {

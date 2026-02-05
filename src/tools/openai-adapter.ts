@@ -1,5 +1,10 @@
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import { ListContentInputSchema, GetContentInputSchema, SearchContentInputSchema } from '@/mcp/types'
+import { ZodError } from 'zod'
+import {
+  ListContentInputSchema,
+  GetContentInputSchema,
+  SearchContentInputSchema,
+} from '@/mcp/types'
 import { listContent, getContent, searchContent } from './core'
 import type { ToolResult } from './types'
 
@@ -66,18 +71,28 @@ export async function executeToolCall(toolCall: ToolCall): Promise<string> {
 
   let result: ToolResult
 
-  switch (name) {
-    case 'list_content':
-      result = await listContent(args as Parameters<typeof listContent>[0])
-      break
-    case 'get_content':
-      result = await getContent(args as Parameters<typeof getContent>[0])
-      break
-    case 'search_content':
-      result = await searchContent(args as Parameters<typeof searchContent>[0])
-      break
-    default:
-      result = { success: false, error: `Unknown tool: ${name}` }
+  try {
+    switch (name) {
+      case 'list_content':
+        result = await listContent(args as Parameters<typeof listContent>[0])
+        break
+      case 'get_content':
+        result = await getContent(args as Parameters<typeof getContent>[0])
+        break
+      case 'search_content':
+        result = await searchContent(args as Parameters<typeof searchContent>[0])
+        break
+      default:
+        result = { success: false, error: `Unknown tool: ${name}` }
+    }
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const issues = error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ')
+      result = { success: false, error: `Invalid tool arguments: ${issues}` }
+    } else {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      result = { success: false, error: `Tool execution failed: ${message}` }
+    }
   }
 
   return JSON.stringify(result)

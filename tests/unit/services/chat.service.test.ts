@@ -28,6 +28,20 @@ const mockLLMProvider = {
   sendMessage: jest.fn(),
 }
 
+// Mock execute tool call
+const mockExecuteToolCall = jest.fn()
+
+// Mock logger
+const mockLogger = {
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+  trace: jest.fn(),
+  fatal: jest.fn(),
+  child: jest.fn(() => mockLogger),
+}
+
 jest.unstable_mockModule('@/repositories', () => ({
   chatRepository: mockChatRepository,
 }))
@@ -42,6 +56,15 @@ jest.unstable_mockModule('@/resilience', () => ({
 
 jest.unstable_mockModule('@/llm', () => ({
   getLLMProvider: () => mockLLMProvider,
+}))
+
+jest.unstable_mockModule('@/tools', () => ({
+  chatToolDefinitions: [],
+  executeToolCall: mockExecuteToolCall,
+}))
+
+jest.unstable_mockModule('@/lib/logger', () => ({
+  logger: mockLogger,
 }))
 
 describe('ChatService', () => {
@@ -343,6 +366,72 @@ describe('ChatService', () => {
         totalTokens: 0,
         durationMs: 0,
       })
+    })
+  })
+
+  describe('tool execution error handling', () => {
+    it('should continue conversation when tool throws unexpected error', async () => {
+      const session = createSession()
+      const assistantMessage = createMessage({
+        id: 'msg_456',
+        role: 'assistant',
+        content: 'I encountered an error but can still help you.',
+        tokensUsed: 60,
+      })
+
+      mockChatRepository.findActiveSession.mockResolvedValue(session)
+      mockChatRepository.addMessage
+        .mockResolvedValueOnce(createMessage({ content: 'Hello' }))
+        .mockResolvedValueOnce(assistantMessage)
+      mockChatRepository.getMessages.mockResolvedValue([])
+
+      // First LLM call returns a tool call
+      mockLLMProvider.sendMessage
+        .mockResolvedValueOnce({
+          content: '',
+          tokensUsed: 30,
+          model: 'gpt-4',
+          tool_calls: [
+            {
+              id: 'call_123',
+              type: 'function',
+              function: {
+                name: 'list_content',
+                arguments: JSON.stringify({ type: 'project' }),
+              },
+            },
+          ],
+        })
+        // Second LLM call after tool error returns final response
+        .mockResolvedValueOnce({
+          content: 'I encountered an error but can still help you.',
+          tokensUsed: 30,
+          model: 'gpt-4',
+        })
+
+      // Tool throws unexpected error
+      mockExecuteToolCall.mockRejectedValue(new Error('Unexpected internal error'))
+
+      const result = await chatService.sendMessage({
+        visitorId: 'visitor-123',
+        ipHash: 'hash-123',
+        message: 'Hello',
+      })
+
+      // Verify chat continues without crashing
+      expect(result.sessionId).toBe(session.id)
+      expect(result.message.content).toBe('I encountered an error but can still help you.')
+      expect(result.tokensUsed).toBe(60)
+
+      // Verify error was logged
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          err: expect.any(Error),
+          toolName: 'list_content',
+          toolId: 'call_123',
+        }),
+        'Unexpected error in tool execution'
+      )
     })
   })
 })

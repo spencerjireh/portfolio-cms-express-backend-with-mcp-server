@@ -30,33 +30,29 @@ export function registerContentResources(server: McpServer) {
 
   // List content by type - register one resource per type
   for (const type of contentTypeEnum) {
-    server.resource(
-      `portfolio://content/${type}`,
-      `portfolio://content/${type}`,
-      async () => {
-        const items = await contentRepository.findPublished(type as ContentType)
+    server.resource(`portfolio://content/${type}`, `portfolio://content/${type}`, async () => {
+      const items = await contentRepository.findPublished(type as ContentType)
 
-        const results = items.map((item) => ({
-          id: item.id,
-          slug: item.slug,
-          type: item.type,
-          data: item.data,
-          status: item.status,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-        }))
+      const results = items.map((item) => ({
+        id: item.id,
+        slug: item.slug,
+        type: item.type,
+        data: item.data,
+        status: item.status,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      }))
 
-        return {
-          contents: [
-            {
-              uri: `portfolio://content/${type}`,
-              mimeType: 'application/json',
-              text: JSON.stringify(results, null, 2),
-            },
-          ],
-        }
+      return {
+        contents: [
+          {
+            uri: `portfolio://content/${type}`,
+            mimeType: 'application/json',
+            text: JSON.stringify(results, null, 2),
+          },
+        ],
       }
-    )
+    })
 
     // Single content item by type and slug
     server.resource(

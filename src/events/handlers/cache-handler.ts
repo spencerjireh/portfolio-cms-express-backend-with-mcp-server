@@ -1,7 +1,12 @@
 import { eventEmitter } from '../event-emitter'
 import { getCache, CacheKeys } from '@/cache'
 import { logger } from '@/lib/logger'
-import type { ContentCreatedEvent, ContentUpdatedEvent, ContentDeletedEvent, ContentRestoredEvent } from '../event-map'
+import type {
+  ContentCreatedEvent,
+  ContentUpdatedEvent,
+  ContentDeletedEvent,
+  ContentRestoredEvent,
+} from '../event-map'
 
 /**
  * Invalidate cache entries related to content changes.
@@ -29,7 +34,10 @@ async function invalidateContentCache(
     totalDeleted += itemDeleted
 
     logger.debug(
-      { pattern: `${listPattern}, ${CacheKeys.CONTENT_BUNDLE}, ${itemPattern}`, keysDeleted: totalDeleted },
+      {
+        pattern: `${listPattern}, ${CacheKeys.CONTENT_BUNDLE}, ${itemPattern}`,
+        keysDeleted: totalDeleted,
+      },
       'Cache invalidated'
     )
 

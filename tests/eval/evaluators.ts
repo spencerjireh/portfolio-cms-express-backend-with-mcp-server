@@ -1,7 +1,11 @@
+import { createHash } from 'node:crypto'
 import type { Assertion, Category, EvalScore, CapturedToolCall } from './types'
 import { CATEGORY_WEIGHTS } from './types'
 
 const OPENAI_API_URL = 'https://api.openai.com/v1'
+
+// In-memory cache for embeddings to avoid redundant API calls
+const EMBEDDING_CACHE = new Map<string, number[]>()
 
 /**
  * Evaluates response using programmatic assertions.
@@ -77,7 +81,8 @@ export async function evaluateLlmJudge(
   apiKey: string,
   input: string,
   response: string,
-  expectedBehavior: string
+  expectedBehavior: string,
+  model = process.env.EVAL_JUDGE_MODEL ?? 'gpt-4o-mini'
 ): Promise<LLMJudgeResult> {
   const systemPrompt = `You are an expert evaluator assessing AI assistant responses.
 Rate the response on a scale of 1-5 based on how well it meets the expected behavior.
@@ -107,7 +112,7 @@ Evaluate the response.`
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -191,6 +196,23 @@ async function getEmbedding(apiKey: string, text: string): Promise<number[]> {
 }
 
 /**
+ * Gets embeddings with caching to avoid redundant API calls.
+ * Uses SHA-256 hash of text as cache key.
+ */
+async function getCachedEmbedding(apiKey: string, text: string): Promise<number[]> {
+  const cacheKey = createHash('sha256').update(text).digest('hex')
+
+  const cached = EMBEDDING_CACHE.get(cacheKey)
+  if (cached) {
+    return cached
+  }
+
+  const embedding = await getEmbedding(apiKey, text)
+  EMBEDDING_CACHE.set(cacheKey, embedding)
+  return embedding
+}
+
+/**
  * Evaluates response using embedding similarity to ground truth.
  * Returns cosine similarity (0-1).
  */
@@ -200,8 +222,8 @@ export async function evaluateEmbedding(
   groundTruth: string
 ): Promise<number> {
   const [responseEmb, truthEmb] = await Promise.all([
-    getEmbedding(apiKey, response),
-    getEmbedding(apiKey, groundTruth),
+    getCachedEmbedding(apiKey, response),
+    getCachedEmbedding(apiKey, groundTruth),
   ])
 
   const similarity = cosineSimilarity(responseEmb, truthEmb)
@@ -309,7 +331,8 @@ export function evaluateToolCalls(
   )
 
   for (const assertion of toolAssertions) {
-    const { type, toolName, argumentPath, argumentValue, minCount, maxCount } = assertion
+    const { type, toolName, argumentPath, argumentValue, minCount, maxCount, caseSensitive } =
+      assertion
 
     if (type === 'toolCalled') {
       if (toolName && !actualToolSet.has(toolName)) {
@@ -339,6 +362,17 @@ export function evaluateToolCalls(
           // Check if any call has the expected argument value
           const hasMatchingArg = matchingCalls.some((tc) => {
             const actualValue = getNestedValue(tc.arguments, argumentPath)
+
+            // Case-insensitive string comparison when caseSensitive !== true
+            if (
+              caseSensitive !== true &&
+              typeof actualValue === 'string' &&
+              typeof argumentValue === 'string'
+            ) {
+              return actualValue.toLowerCase() === argumentValue.toLowerCase()
+            }
+
+            // Default: exact JSON comparison
             return JSON.stringify(actualValue) === JSON.stringify(argumentValue)
           })
           if (!hasMatchingArg) {
