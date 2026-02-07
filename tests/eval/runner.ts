@@ -10,7 +10,7 @@ import type {
   CapturedToolCall,
   ToolEvaluation,
 } from './types'
-import { CATEGORY_WEIGHTS, PASS_THRESHOLD } from './types'
+import { CATEGORY_WEIGHTS, CATEGORY_THRESHOLDS } from './types'
 import { getAllSeedContent, EVAL_SESSION_PREFIX, EVAL_CONTENT_PREFIX } from './fixtures'
 import {
   evaluateProgrammatic,
@@ -242,6 +242,7 @@ export class EvalRunner {
     }
 
     const compositeScore = computeComposite(scores, evalCase.category)
+    const threshold = CATEGORY_THRESHOLDS[evalCase.category]
 
     return {
       caseId: evalCase.id,
@@ -250,7 +251,7 @@ export class EvalRunner {
       response,
       scores,
       compositeScore,
-      passed: compositeScore >= PASS_THRESHOLD,
+      passed: compositeScore >= threshold,
       llmReasoning,
       durationMs,
       retryCount: totalRetryCount > 0 ? totalRetryCount : undefined,
@@ -423,6 +424,7 @@ export class EvalRunner {
     }
 
     const compositeScore = computeComposite(scores, evalCase.category)
+    const threshold = CATEGORY_THRESHOLDS[evalCase.category]
 
     return {
       caseId: evalCase.id,
@@ -431,7 +433,7 @@ export class EvalRunner {
       response: responseToEvaluate,
       scores,
       compositeScore,
-      passed: compositeScore >= PASS_THRESHOLD,
+      passed: compositeScore >= threshold,
       llmReasoning,
       durationMs,
       retryCount: totalRetryCount > 0 ? totalRetryCount : undefined,
@@ -582,6 +584,7 @@ export class EvalRunner {
       'refusal',
       'edge',
       'hallucination',
+      'toolfail',
     ]
     const byCategory = {} as Record<Category, { total: number; passed: number; score: number }>
 

@@ -1,30 +1,35 @@
-import { readFileSync } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+/**
+ * Evaluation datasets index.
+ * Exports all test cases from TypeScript modules.
+ */
+
 import type { EvalCase, Category } from '../types'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-
-function loadJson<T>(filename: string): T {
-  const filepath = join(__dirname, filename)
-  const content = readFileSync(filepath, 'utf-8')
-  return JSON.parse(content) as T
-}
+import { accuracyCases } from './accuracy'
+import { relevanceCases } from './relevance'
+import { safetyCases } from './safety'
+import { piiCases } from './pii'
+import { toneCases } from './tone'
+import { refusalCases } from './refusal'
+import { edgeCases } from './edge-cases'
+import { hallucinationCases } from './hallucination'
+import { toolFailureCases } from './tool-failure'
+import { multiTurnCases } from './multi-turn'
 
 /**
- * All evaluation cases (loaded once at module initialization).
+ * All evaluation cases.
  */
 export const allCases: EvalCase[] = [
-  ...loadJson<EvalCase[]>('relevance.json'),
-  ...loadJson<EvalCase[]>('accuracy.json'),
-  ...loadJson<EvalCase[]>('safety.json'),
-  ...loadJson<EvalCase[]>('pii.json'),
-  ...loadJson<EvalCase[]>('tone.json'),
-  ...loadJson<EvalCase[]>('refusal.json'),
-  ...loadJson<EvalCase[]>('edge-cases.json'),
-  ...loadJson<EvalCase[]>('hallucination.json'),
-  ...loadJson<EvalCase[]>('tool-failure.json'),
-  ...loadJson<EvalCase[]>('multi-turn.json'),
+  ...relevanceCases,
+  ...accuracyCases,
+  ...safetyCases,
+  ...piiCases,
+  ...toneCases,
+  ...refusalCases,
+  ...edgeCases,
+  ...hallucinationCases,
+  ...toolFailureCases,
+  ...multiTurnCases,
 ]
 
 /**
@@ -38,5 +43,19 @@ export function getCasesByCategory(category: Category): EvalCase[] {
  * Get all available categories.
  */
 export function getCategories(): Category[] {
-  return ['relevance', 'accuracy', 'safety', 'pii', 'tone', 'refusal', 'edge', 'hallucination']
+  return ['relevance', 'accuracy', 'safety', 'pii', 'tone', 'refusal', 'edge', 'hallucination', 'toolfail']
+}
+
+// Re-export individual case arrays for direct access
+export {
+  accuracyCases,
+  relevanceCases,
+  safetyCases,
+  piiCases,
+  toneCases,
+  refusalCases,
+  edgeCases,
+  hallucinationCases,
+  toolFailureCases,
+  multiTurnCases,
 }
