@@ -270,6 +270,25 @@ describe('RateLimiter', () => {
     })
   })
 
+  describe('cache failure', () => {
+    it('should fail open when cache throws', async () => {
+      // Make getTokenBucket throw an error
+      const originalGetTokenBucket = mockCache.getTokenBucket.bind(mockCache)
+      mockCache.getTokenBucket = jest.fn(() => {
+        throw new Error('Redis connection lost')
+      }) as typeof mockCache.getTokenBucket
+
+      const rateLimiter = await createRateLimiterWithMocks()
+      const result = await rateLimiter.consume('test-ip-fail-open')
+
+      expect(result.allowed).toBe(true)
+      expect(result.remaining).toBe(0)
+
+      // Restore
+      mockCache.getTokenBucket = originalGetTokenBucket
+    })
+  })
+
   describe('edge cases', () => {
     it('should handle bucket with exactly one token remaining', async () => {
       const rateLimiter = await createRateLimiterWithMocks()

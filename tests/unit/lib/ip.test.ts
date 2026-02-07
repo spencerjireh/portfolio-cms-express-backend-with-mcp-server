@@ -3,57 +3,13 @@ import { extractClientIP, hashIP } from '@/lib/ip'
 import { Request } from 'express'
 
 describe('extractClientIP', () => {
-  it('should extract IP from X-Forwarded-For header (string)', () => {
-    const req = {
-      headers: {
-        'x-forwarded-for': '192.168.1.1, 10.0.0.1, 172.16.0.1',
-      },
-      ip: '127.0.0.1',
-    } as unknown as Request
-
-    expect(extractClientIP(req)).toBe('192.168.1.1')
-  })
-
-  it('should extract IP from X-Forwarded-For header (array)', () => {
-    const req = {
-      headers: {
-        'x-forwarded-for': ['192.168.1.1, 10.0.0.1'],
-      },
-      ip: '127.0.0.1',
-    } as unknown as Request
-
-    expect(extractClientIP(req)).toBe('192.168.1.1')
-  })
-
-  it('should handle single IP in X-Forwarded-For', () => {
-    const req = {
-      headers: {
-        'x-forwarded-for': '192.168.1.1',
-      },
-      ip: '127.0.0.1',
-    } as unknown as Request
-
-    expect(extractClientIP(req)).toBe('192.168.1.1')
-  })
-
-  it('should trim whitespace from IP', () => {
-    const req = {
-      headers: {
-        'x-forwarded-for': '  192.168.1.1  , 10.0.0.1',
-      },
-      ip: '127.0.0.1',
-    } as unknown as Request
-
-    expect(extractClientIP(req)).toBe('192.168.1.1')
-  })
-
-  it('should fall back to req.ip when X-Forwarded-For is missing', () => {
+  it('should use req.ip directly', () => {
     const req = {
       headers: {},
-      ip: '127.0.0.1',
+      ip: '192.168.1.1',
     } as unknown as Request
 
-    expect(extractClientIP(req)).toBe('127.0.0.1')
+    expect(extractClientIP(req)).toBe('192.168.1.1')
   })
 
   it('should fall back to 127.0.0.1 when req.ip is undefined', () => {
@@ -63,29 +19,6 @@ describe('extractClientIP', () => {
     } as unknown as Request
 
     expect(extractClientIP(req)).toBe('127.0.0.1')
-  })
-
-  it('should handle empty X-Forwarded-For', () => {
-    const req = {
-      headers: {
-        'x-forwarded-for': '',
-      },
-      ip: '10.0.0.1',
-    } as unknown as Request
-
-    expect(extractClientIP(req)).toBe('10.0.0.1')
-  })
-
-  it('should handle X-Forwarded-For with empty first entry', () => {
-    const req = {
-      headers: {
-        'x-forwarded-for': ', 192.168.1.1',
-      },
-      ip: '10.0.0.1',
-    } as unknown as Request
-
-    // Empty first entry should fall back
-    expect(extractClientIP(req)).toBe('10.0.0.1')
   })
 })
 

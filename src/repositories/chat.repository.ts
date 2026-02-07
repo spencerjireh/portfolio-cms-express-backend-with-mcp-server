@@ -130,6 +130,17 @@ export class ChatRepository {
       )
   }
 
+  async deleteExpired(): Promise<number> {
+    const now = new Date().toISOString()
+    const result = await db
+      .update(chatSessions)
+      .set({ status: 'expired' as SessionStatus })
+      .where(
+        and(eq(chatSessions.status, 'active'), lt(chatSessions.expiresAt, now))
+      )
+    return result.rowsAffected
+  }
+
   async listSessions(options?: {
     status?: SessionStatus
     limit?: number

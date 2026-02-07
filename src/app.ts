@@ -7,6 +7,7 @@ import { securityMiddleware } from '@/middleware/security.middleware'
 import { corsMiddleware } from '@/middleware/cors.middleware'
 import { httpLogger } from './lib/logger'
 import { errorHandlerMiddleware } from '@/middleware/error.middleware'
+import { adminAuthMiddleware } from '@/middleware/admin-auth.middleware'
 import { NotFoundError } from './errors/app.error'
 import { healthRouter } from './routes/health.routes'
 import { metricsRouter } from './routes/metrics.routes'
@@ -19,6 +20,8 @@ import { env } from './config/env'
 
 export function createApp() {
   const app = express()
+
+  app.set('trust proxy', 1)
 
   app.use(requestIdMiddleware())
   app.use(requestContextMiddleware())
@@ -44,8 +47,8 @@ export function createApp() {
   // Health check routes
   app.use('/api/health', healthRouter)
 
-  // Metrics endpoint
-  app.use('/api/metrics', metricsRouter)
+  // Metrics endpoint (admin-only)
+  app.use('/api/metrics', adminAuthMiddleware(), metricsRouter)
 
   // Public API routes
   app.use('/api/v1/content', contentRouter)

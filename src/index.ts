@@ -8,6 +8,7 @@ import { registerCacheHandlers } from '@/events/handlers/cache.handlers'
 import { registerAuditHandlers } from '@/events/handlers/audit.handlers'
 import { registerMetricsHandlers } from '@/events/handlers/metrics.handlers'
 import { initializeMetrics, initializeTracing } from '@/observability'
+import { chatRepository } from '@/repositories/chat.repository'
 
 async function start() {
   // Initialize metrics and tracing
@@ -30,6 +31,18 @@ async function start() {
   registerCacheHandlers()
   registerAuditHandlers()
   registerMetricsHandlers()
+
+  // Hourly cleanup of expired chat sessions
+  setInterval(async () => {
+    try {
+      const count = await chatRepository.deleteExpired()
+      if (count > 0) {
+        logger.info({ count }, 'Expired chat sessions cleaned up')
+      }
+    } catch (error) {
+      logger.warn({ error }, 'Failed to clean up expired chat sessions')
+    }
+  }, 60 * 60 * 1000)
 
   const app = createApp()
 
@@ -65,7 +78,8 @@ async function start() {
   process.on('SIGINT', () => shutdown('SIGINT'))
 
   process.on('unhandledRejection', (reason) => {
-    logger.error({ reason }, 'Unhandled rejection')
+    logger.fatal({ reason }, 'Unhandled rejection')
+    throw reason
   })
 
   process.on('uncaughtException', (error) => {

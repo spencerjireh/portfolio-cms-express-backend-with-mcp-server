@@ -127,6 +127,17 @@ class TestChatRepository {
       .where(and(eq(chatSessions.status, 'active'), lt(chatSessions.expiresAt, olderThan.toISOString())))
   }
 
+  async deleteExpired(): Promise<number> {
+    const now = new Date().toISOString()
+    const result = await this.db
+      .update(chatSessions)
+      .set({ status: 'expired' as SessionStatus })
+      .where(
+        and(eq(chatSessions.status, 'active'), lt(chatSessions.expiresAt, now))
+      )
+    return result.rowsAffected
+  }
+
   async getStats(sessionId: string): Promise<ChatStats | null> {
     const session = await this.findSession(sessionId)
     if (!session) return null
@@ -488,6 +499,55 @@ describe('ChatRepository Integration', () => {
 
       const expired = await repository.findExpired(new Date())
       expect(expired).toHaveLength(0)
+    })
+  })
+
+  describe('deleteExpired', () => {
+    it('should mark expired active sessions as expired', async () => {
+      const session = await repository.createSession({
+        visitorId: 'visitor-1',
+        ipHash: 'hash1',
+      })
+
+      // Update expiry to past
+      const pastDate = new Date(Date.now() - 1000).toISOString()
+      await testDb.db
+        .update(chatSessions)
+        .set({ expiresAt: pastDate })
+        .where(eq(chatSessions.id, session.id))
+
+      const count = await repository.deleteExpired()
+
+      expect(count).toBe(1)
+
+      const updated = await repository.findSession(session.id)
+      expect(updated!.status).toBe('expired')
+    })
+
+    it('should not affect non-expired sessions', async () => {
+      await repository.createSession({
+        visitorId: 'visitor-1',
+        ipHash: 'hash1',
+      })
+
+      const count = await repository.deleteExpired()
+      expect(count).toBe(0)
+    })
+
+    it('should not affect already ended sessions', async () => {
+      const session = await repository.createSession({
+        visitorId: 'visitor-1',
+        ipHash: 'hash1',
+      })
+
+      const pastDate = new Date(Date.now() - 1000).toISOString()
+      await testDb.db
+        .update(chatSessions)
+        .set({ expiresAt: pastDate, status: 'ended' })
+        .where(eq(chatSessions.id, session.id))
+
+      const count = await repository.deleteExpired()
+      expect(count).toBe(0)
     })
   })
 

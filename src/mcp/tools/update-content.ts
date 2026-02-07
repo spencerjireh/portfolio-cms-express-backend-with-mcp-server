@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
 import { UpdateContentInputSchema } from '../schemas'
 import { validateContentData } from '@/validation/content.schemas'
+import { ValidationError } from '@/errors/app.error'
 import type { ContentType } from '@/db/schema'
 
 export function registerUpdateContent(server: McpServer) {
@@ -29,23 +30,26 @@ export function registerUpdateContent(server: McpServer) {
       // If data is provided, validate against type-specific schema
       let validatedData: Record<string, unknown> | undefined
       if (params.data) {
-        const validationResult = validateContentData(existing.type as ContentType, params.data)
-        if ('valid' in validationResult && validationResult.valid === false) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: JSON.stringify(
-                  { error: 'Validation failed', details: validationResult.errors },
-                  null,
-                  2
-                ),
-              },
-            ],
-            isError: true,
+        try {
+          validatedData = validateContentData(existing.type as ContentType, params.data)
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: JSON.stringify(
+                    { error: 'Validation failed', details: error.fields },
+                    null,
+                    2
+                  ),
+                },
+              ],
+              isError: true,
+            }
           }
+          throw error
         }
-        validatedData = validationResult
       }
 
       // If slug is being changed, verify it doesn't conflict

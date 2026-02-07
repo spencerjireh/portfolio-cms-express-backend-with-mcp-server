@@ -3,22 +3,10 @@ import type { Request } from 'express'
 
 /**
  * Extracts the client IP address from the request.
- * Checks X-Forwarded-For header first (for reverse proxy scenarios),
- * then falls back to req.ip.
+ * Relies on Express's `trust proxy` setting to correctly resolve req.ip
+ * from X-Forwarded-For headers set by the reverse proxy.
  */
 export function extractClientIP(req: Request): string {
-  const forwardedFor = req.headers['x-forwarded-for']
-
-  if (forwardedFor) {
-    // X-Forwarded-For can be a comma-separated list; take the first (original client) IP
-    const forwarded = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor
-    const clientIP = forwarded.split(',')[0]?.trim()
-    if (clientIP) {
-      return clientIP
-    }
-  }
-
-  // Fallback to Express's req.ip (may be undefined in some configurations)
   return req.ip ?? '127.0.0.1'
 }
 

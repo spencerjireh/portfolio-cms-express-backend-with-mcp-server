@@ -1,6 +1,7 @@
 import { getCache, CacheKeys } from '@/cache'
 import { env } from '@/config/env'
 import { eventEmitter } from '@/events'
+import { logger } from '@/lib/logger'
 
 export interface RateLimitResult {
   allowed: boolean
@@ -34,35 +35,40 @@ export class RateLimiter {
    * Returns whether the request is allowed and how many tokens remain.
    */
   async consume(ipHash: string): Promise<RateLimitResult> {
-    const key = `${CacheKeys.TOKEN_BUCKET}:${ipHash}`
-    const now = Date.now()
-    const cache = getCache()
+    try {
+      const key = `${CacheKeys.TOKEN_BUCKET}:${ipHash}`
+      const now = Date.now()
+      const cache = getCache()
 
-    let bucket = await cache.getTokenBucket(key)
+      let bucket = await cache.getTokenBucket(key)
 
-    if (!bucket) {
-      // Initialize new bucket with full capacity minus one token for this request
-      bucket = { tokens: this.capacity - 1, lastRefill: now }
+      if (!bucket) {
+        // Initialize new bucket with full capacity minus one token for this request
+        bucket = { tokens: this.capacity - 1, lastRefill: now }
+        await cache.setTokenBucket(key, bucket, this.ttl)
+        return { allowed: true, remaining: Math.floor(bucket.tokens) }
+      }
+
+      // Refill tokens based on elapsed time
+      const elapsed = (now - bucket.lastRefill) / 1000
+      bucket.tokens = Math.min(this.capacity, bucket.tokens + elapsed * this.refillRate)
+      bucket.lastRefill = now
+
+      if (bucket.tokens >= 1) {
+        bucket.tokens -= 1
+        await cache.setTokenBucket(key, bucket, this.ttl)
+        return { allowed: true, remaining: Math.floor(bucket.tokens) }
+      }
+
+      // Not enough tokens - calculate retry time
+      const retryAfter = Math.ceil((1 - bucket.tokens) / this.refillRate)
       await cache.setTokenBucket(key, bucket, this.ttl)
-      return { allowed: true, remaining: Math.floor(bucket.tokens) }
+
+      return { allowed: false, remaining: 0, retryAfter }
+    } catch (error) {
+      logger.warn({ error, ipHash }, 'Rate limiter cache failure, allowing request')
+      return { allowed: true, remaining: 0 }
     }
-
-    // Refill tokens based on elapsed time
-    const elapsed = (now - bucket.lastRefill) / 1000
-    bucket.tokens = Math.min(this.capacity, bucket.tokens + elapsed * this.refillRate)
-    bucket.lastRefill = now
-
-    if (bucket.tokens >= 1) {
-      bucket.tokens -= 1
-      await cache.setTokenBucket(key, bucket, this.ttl)
-      return { allowed: true, remaining: Math.floor(bucket.tokens) }
-    }
-
-    // Not enough tokens - calculate retry time
-    const retryAfter = Math.ceil((1 - bucket.tokens) / this.refillRate)
-    await cache.setTokenBucket(key, bucket, this.ttl)
-
-    return { allowed: false, remaining: 0, retryAfter }
   }
 
   /**

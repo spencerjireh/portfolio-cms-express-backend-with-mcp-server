@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { parseZodErrors } from './parse-errors'
 import { contentTypeEnum, contentStatusEnum } from '@/db/schema'
+import { ValidationError } from '@/errors/app.error'
 
 // Slug validation
 export const SlugSchema = z
@@ -200,7 +201,7 @@ export function validateContentData(
 
   const result = schema.safeParse(data)
   if (!result.success) {
-    return { valid: false, errors: parseZodErrors(result.error) }
+    throw new ValidationError('Invalid content data', parseZodErrors(result.error))
   }
 
   return result.data as Record<string, unknown>

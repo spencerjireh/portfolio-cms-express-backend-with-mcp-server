@@ -19,6 +19,7 @@ import {
   validateContentData,
 } from '@/validation/content.schemas'
 import { parseZodErrors } from '@/validation/parse-errors'
+import { ValidationError } from '@/errors/app.error'
 import { ZodError } from 'zod'
 
 describe('Content Validation Schemas', () => {
@@ -351,12 +352,16 @@ describe('Content Validation Schemas', () => {
       expect(result).toHaveProperty('title', 'Test')
     })
 
-    it('should return validation errors for invalid data', () => {
+    it('should throw ValidationError for invalid data', () => {
       const data = { title: '' } // Missing description
-      const result = validateContentData('project', data)
+      expect(() => validateContentData('project', data)).toThrow(ValidationError)
 
-      expect(result).toHaveProperty('valid', false)
-      expect(result).toHaveProperty('errors')
+      try {
+        validateContentData('project', data)
+      } catch (error) {
+        expect(error).toBeInstanceOf(ValidationError)
+        expect((error as ValidationError).fields).toBeDefined()
+      }
     })
 
     it('should throw for unknown content type', () => {
