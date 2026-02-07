@@ -37,6 +37,7 @@ interface OpenAIRequest {
   max_tokens: number
   temperature: number
   tools?: OpenAITool[]
+  tool_choice?: 'auto' | 'none' | 'required'
 }
 
 interface OpenAIChoice {
@@ -138,6 +139,7 @@ export class OpenAIProvider implements LLMProvider {
           parameters: tool.parameters,
         },
       }))
+      requestBody.tool_choice = 'auto'
     }
 
     // Wrap the fetch call with retry logic
