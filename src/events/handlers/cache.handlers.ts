@@ -54,7 +54,11 @@ async function invalidateContentCache(
 /**
  * Register cache invalidation handlers for content events.
  */
+let cacheHandlersRegistered = false
 export function registerCacheHandlers(): void {
+  if (cacheHandlersRegistered) return
+  cacheHandlersRegistered = true
+
   eventEmitter.on('content:created', async (data) => {
     await invalidateContentCache(data, `Content created: ${data.id}`)
   })

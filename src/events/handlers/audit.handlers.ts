@@ -4,7 +4,11 @@ import { logger } from '@/lib/logger'
 /**
  * Register audit logging handlers for application events.
  */
+let auditHandlersRegistered = false
 export function registerAuditHandlers(): void {
+  if (auditHandlersRegistered) return
+  auditHandlersRegistered = true
+
   // Content mutation events
   eventEmitter.on('content:created', (data) => {
     logger.info(

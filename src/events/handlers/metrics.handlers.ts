@@ -14,7 +14,11 @@ const CIRCUIT_STATE_VALUES: Record<string, number> = {
   half_open: 2,
 }
 
+let metricsHandlersRegistered = false
 export function registerMetricsHandlers(): void {
+  if (metricsHandlersRegistered) return
+  metricsHandlersRegistered = true
+
   // Chat message sent
   eventEmitter.on('chat:message_sent', (data) => {
     chatMessagesTotal.inc({ role: data.role })
