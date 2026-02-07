@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals'
 import { createMcpTestClient, type McpTestContext } from './helpers/mcp-test-client'
 
 describe('MCP Tools (E2E)', () => {
@@ -31,7 +30,7 @@ describe('MCP Tools (E2E)', () => {
     }
   })
 
-  it('create_content returns success with id and slug', async () => {
+  it('create_content returns item with id and slug', async () => {
     const result = await ctx.client.callTool({
       name: 'create_content',
       arguments: {
@@ -44,9 +43,8 @@ describe('MCP Tools (E2E)', () => {
 
     expect(result.isError).toBeFalsy()
     const parsed = JSON.parse((result.content as Array<{ text: string }>)[0].text)
-    expect(parsed.success).toBe(true)
-    expect(parsed.content).toHaveProperty('id')
-    expect(parsed.content.slug).toBe('mcp-test-project')
+    expect(parsed.item).toHaveProperty('id')
+    expect(parsed.item.slug).toBe('mcp-test-project')
   })
 
   it('duplicate slug returns error', async () => {
@@ -72,43 +70,43 @@ describe('MCP Tools (E2E)', () => {
     expect(result.isError).toBe(true)
   })
 
-  it('list_content returns created items', async () => {
+  it('list_content returns items envelope', async () => {
     const result = await ctx.client.callTool({
       name: 'list_content',
       arguments: { type: 'project' },
     })
 
     expect(result.isError).toBeFalsy()
-    // list_content returns a raw array of items
-    const items = JSON.parse((result.content as Array<{ text: string }>)[0].text)
-    expect(Array.isArray(items)).toBe(true)
-    expect(items.length).toBeGreaterThan(0)
+    const parsed = JSON.parse((result.content as Array<{ text: string }>)[0].text)
+    expect(parsed.items).toBeDefined()
+    expect(Array.isArray(parsed.items)).toBe(true)
+    expect(parsed.items.length).toBeGreaterThan(0)
   })
 
-  it('get_content returns item data', async () => {
+  it('get_content returns item envelope', async () => {
     const result = await ctx.client.callTool({
       name: 'get_content',
       arguments: { type: 'project', slug: 'mcp-test-project' },
     })
 
     expect(result.isError).toBeFalsy()
-    // get_content returns the raw item object
-    const item = JSON.parse((result.content as Array<{ text: string }>)[0].text)
-    expect(item.slug).toBe('mcp-test-project')
-    expect(item.data).toHaveProperty('title', 'MCP Test')
+    const parsed = JSON.parse((result.content as Array<{ text: string }>)[0].text)
+    expect(parsed.item).toBeDefined()
+    expect(parsed.item.slug).toBe('mcp-test-project')
+    expect(parsed.item.data).toHaveProperty('title', 'MCP Test')
   })
 
-  it('search_content finds item by keyword', async () => {
+  it('search_content returns items envelope', async () => {
     const result = await ctx.client.callTool({
       name: 'search_content',
       arguments: { query: 'MCP Test' },
     })
 
     expect(result.isError).toBeFalsy()
-    // search_content returns a raw array
-    const items = JSON.parse((result.content as Array<{ text: string }>)[0].text)
-    expect(Array.isArray(items)).toBe(true)
-    expect(items.length).toBeGreaterThan(0)
+    const parsed = JSON.parse((result.content as Array<{ text: string }>)[0].text)
+    expect(parsed.items).toBeDefined()
+    expect(Array.isArray(parsed.items)).toBe(true)
+    expect(parsed.items.length).toBeGreaterThan(0)
   })
 
   it('update_content increments version', async () => {
@@ -117,8 +115,8 @@ describe('MCP Tools (E2E)', () => {
       name: 'get_content',
       arguments: { type: 'project', slug: 'mcp-test-project' },
     })
-    const item = JSON.parse((getResult.content as Array<{ text: string }>)[0].text)
-    const id = item.id
+    const getParsed = JSON.parse((getResult.content as Array<{ text: string }>)[0].text)
+    const id = getParsed.item.id
 
     const updateResult = await ctx.client.callTool({
       name: 'update_content',
@@ -129,9 +127,9 @@ describe('MCP Tools (E2E)', () => {
     })
 
     expect(updateResult.isError).toBeFalsy()
-    const updated = JSON.parse((updateResult.content as Array<{ text: string }>)[0].text)
-    expect(updated.success).toBe(true)
-    expect(updated.content.version).toBe(2)
+    const parsed = JSON.parse((updateResult.content as Array<{ text: string }>)[0].text)
+    expect(parsed.item).toBeDefined()
+    expect(parsed.item.version).toBe(2)
   })
 
   it('delete_content removes item from list', async () => {
@@ -146,7 +144,7 @@ describe('MCP Tools (E2E)', () => {
       },
     })
     const created = JSON.parse((createResult.content as Array<{ text: string }>)[0].text)
-    const id = created.content.id
+    const id = created.item.id
 
     const deleteResult = await ctx.client.callTool({
       name: 'delete_content',
@@ -155,15 +153,17 @@ describe('MCP Tools (E2E)', () => {
 
     expect(deleteResult.isError).toBeFalsy()
     const deleted = JSON.parse((deleteResult.content as Array<{ text: string }>)[0].text)
-    expect(deleted.success).toBe(true)
+    expect(deleted.id).toBe(id)
+    expect(deleted.type).toBe('project')
+    expect(deleted.slug).toBe('delete-me-mcp')
 
     // Verify it's gone from list
     const listResult = await ctx.client.callTool({
       name: 'list_content',
       arguments: { type: 'project' },
     })
-    const items = JSON.parse((listResult.content as Array<{ text: string }>)[0].text)
-    const slugs = items.map((i: { slug: string }) => i.slug)
+    const listParsed = JSON.parse((listResult.content as Array<{ text: string }>)[0].text)
+    const slugs = listParsed.items.map((i: { slug: string }) => i.slug)
     expect(slugs).not.toContain('delete-me-mcp')
   })
 })
