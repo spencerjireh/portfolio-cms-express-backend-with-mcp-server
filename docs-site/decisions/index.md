@@ -26,6 +26,7 @@ An Architecture Decision Record (ADR) captures an important architectural decisi
 | [005](/decisions/005-observability) | Observability | Accepted | Events and OpenTelemetry tracing |
 | [006](/decisions/006-pii-obfuscation) | PII Protection | Accepted | Guardrails-based PII detection and sanitization |
 | [007](/decisions/007-content-model-flexibility) | Content Model | Accepted | Flexible JSON with app-level validation |
+| [008](/decisions/008-shared-tools-architecture) | Shared Tools | Accepted | Unified tool implementations for MCP and chat |
 
 ## ADR Template
 
@@ -82,3 +83,4 @@ What is the change that we're proposing and/or doing?
 ### AI Integration
 - [ADR-003: LLM Abstraction](/decisions/003-llm-abstraction) - Provider flexibility
 - [ADR-006: PII Protection](/decisions/006-pii-obfuscation) - Guardrails and sanitization
+- [ADR-008: Shared Tools](/decisions/008-shared-tools-architecture) - Unified MCP and chat tools

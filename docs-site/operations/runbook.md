@@ -13,16 +13,15 @@ This runbook covers common operational scenarios, troubleshooting procedures, an
 
 | Endpoint | Purpose | Expected Response |
 |----------|---------|-------------------|
-| `GET /api/health` | Quick health check | `{ status: 'ok' }` |
 | `GET /api/health/live` | Liveness probe | `{ status: 'ok' }` (200) |
-| `GET /api/health/ready` | Readiness probe | `{ status: 'ok', checks: {...} }` |
-| `GET /api/health/startup` | Startup probe | `{ status: 'ok' }` |
+| `GET /api/health/ready` | Readiness probe | `{ status: 'ready', checks: {...} }` (200 or 503) |
+| `GET /api/health/startup` | Startup probe | `{ status: 'started', uptime, version, environment }` |
 
 ### Manual Health Check
 
 ```bash
-# Quick check
-curl -s https://api.yoursite.com/api/health | jq
+# Liveness check
+curl -s https://api.yoursite.com/api/health/live | jq
 
 # Detailed readiness (includes DB status)
 curl -s https://api.yoursite.com/api/health/ready | jq

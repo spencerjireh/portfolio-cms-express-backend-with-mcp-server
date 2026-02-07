@@ -13,7 +13,8 @@ The Portfolio Backend is configured via environment variables. This page documen
 |----------|-------------|---------|
 | `TURSO_DATABASE_URL` | Turso database URL | `libsql://db-name.turso.io` |
 | `TURSO_AUTH_TOKEN` | Turso authentication token | `eyJ...` |
-| `ADMIN_API_KEY` | API key for admin endpoints | `secure-random-string` |
+| `ADMIN_API_KEY` | API key for admin endpoints (min 32 chars) | `secure-random-string-at-least-32-chars` |
+| `LLM_API_KEY` | LLM provider API key | `sk-...` |
 
 ## Optional Variables
 
@@ -52,10 +53,19 @@ If `REDIS_URL` is not set, the application falls back to in-memory caching. This
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `LLM_PROVIDER` | `openai` | LLM provider (currently only `openai` supported) |
-| `LLM_API_KEY` | - | LLM provider API key |
+| `LLM_BASE_URL` | - | Custom OpenAI-compatible endpoint URL |
 | `LLM_MODEL` | `gpt-4o-mini` | Model to use for chat |
-| `LLM_MAX_TOKENS` | `500` | Maximum response tokens |
+| `LLM_MAX_TOKENS` | `1000` | Maximum response tokens |
 | `LLM_TEMPERATURE` | `0.7` | Response temperature (0-1) |
+| `LLM_REQUEST_TIMEOUT_MS` | `30000` | LLM request timeout in milliseconds |
+| `LLM_MAX_RETRIES` | `3` | Maximum retry attempts for LLM calls |
+
+### Timeouts
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REQUEST_TIMEOUT_MS` | `30000` | Default HTTP request timeout in milliseconds |
+| `CHAT_REQUEST_TIMEOUT_MS` | `60000` | Chat endpoint timeout in milliseconds |
 
 ### Observability
 
@@ -81,7 +91,8 @@ See [OpenTelemetry Environment Variables](https://opentelemetry.io/docs/specs/ot
 # Required
 TURSO_DATABASE_URL=libsql://portfolio-db.turso.io
 TURSO_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9...
-ADMIN_API_KEY=super-secure-random-key-here
+ADMIN_API_KEY=super-secure-random-key-at-least-32-characters
+LLM_API_KEY=sk-...
 
 # Server
 PORT=3000
@@ -99,10 +110,16 @@ RATE_LIMIT_REFILL_RATE=0.333
 
 # LLM
 LLM_PROVIDER=openai
-LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
-LLM_MAX_TOKENS=500
+LLM_MAX_TOKENS=1000
 LLM_TEMPERATURE=0.7
+LLM_REQUEST_TIMEOUT_MS=30000
+LLM_MAX_RETRIES=3
+
+# Timeouts
+REQUEST_TIMEOUT_MS=30000
+CHAT_REQUEST_TIMEOUT_MS=60000
 
 # Observability
 OTEL_ENABLED=true

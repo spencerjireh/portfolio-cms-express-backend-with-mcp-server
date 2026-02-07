@@ -31,11 +31,15 @@ erDiagram
 | type | slug | data | status |
 |------|------|------|--------|
 | project | portfolio-backend | `{title, description, tags...}` | published |
-| experience | tech-corp-senior | `{company, role, startDate...}` | published |
-| education | cs-degree | `{institution, degree...}` | published |
-| skill | typescript | `{name, category, proficiency...}` | published |
+| experience | work-history | `{items: [{company, role, startDate...}]}` | published |
+| education | degrees | `{items: [{institution, degree...}]}` | published |
+| skill | languages | `{items: [{name, category, proficiency...}]}` | published |
 | about | about | `{title, content...}` | published |
 | contact | contact | `{name, email, social...}` | published |
+
+::: tip
+Experience, education, and skill content types use a **list-based schema** with an `items` array. Each content item contains multiple entries (e.g., all work experiences in one content row).
+:::
 
 ## Base Schema
 
@@ -112,23 +116,25 @@ interface ProjectData {
 
 ### Experience
 
-Work experience and employment history.
+Work experience and employment history. Uses a **list-based schema** -- a single content item holds all experience entries in an `items` array.
 
 **Type**: `experience`
-**Slug**: Required (e.g., `tech-corp-senior-engineer`)
+**Slug**: Required (e.g., `work-history`)
 
 #### Schema
 
 ```typescript
 interface ExperienceData {
-  company: string          // Required
-  role: string             // Required
-  description?: string     // Job description/achievements
-  startDate: string        // Required, format: YYYY-MM
-  endDate: string | null   // null = current position
-  location?: string        // City, Country or "Remote"
-  type?: 'full-time' | 'part-time' | 'contract' | 'freelance'
-  skills: string[]         // Technologies used
+  items: Array<{
+    company: string          // Required, max 200 chars
+    role: string             // Required, max 200 chars
+    description?: string     // Job description/achievements, max 2000 chars
+    startDate: string        // Required, format: YYYY-MM
+    endDate: string | null   // null = current position
+    location?: string        // City, Country or "Remote", max 100 chars
+    type?: 'full-time' | 'part-time' | 'contract' | 'freelance'
+    skills: string[]         // Technologies used, default: []
+  }>                         // Max 50 items
 }
 ```
 
@@ -137,58 +143,66 @@ interface ExperienceData {
 ```json
 {
   "type": "experience",
-  "slug": "tech-corp-senior-engineer",
+  "slug": "work-history",
   "status": "published",
   "data": {
-    "company": "Tech Corp",
-    "role": "Senior Software Engineer",
-    "description": "Led development of microservices platform...",
-    "startDate": "2022-06",
-    "endDate": null,
-    "location": "San Francisco, CA",
-    "type": "full-time",
-    "skills": ["TypeScript", "Kubernetes", "PostgreSQL"]
+    "items": [
+      {
+        "company": "Tech Corp",
+        "role": "Senior Software Engineer",
+        "description": "Led development of microservices platform...",
+        "startDate": "2022-06",
+        "endDate": null,
+        "location": "San Francisco, CA",
+        "type": "full-time",
+        "skills": ["TypeScript", "Kubernetes", "PostgreSQL"]
+      }
+    ]
   }
 }
 ```
 
 ### Education
 
-Educational background.
+Educational background. Uses a **list-based schema** -- a single content item holds all education entries in an `items` array.
 
 **Type**: `education`
-**Slug**: Required (e.g., `cs-degree-state-university`)
+**Slug**: Required (e.g., `degrees`)
 
 #### Schema
 
 ```typescript
 interface EducationData {
-  institution: string      // Required
-  degree: string           // Required (e.g., "B.S. Computer Science")
-  field?: string           // Field of study
-  startDate: string        // Format: YYYY-MM
-  endDate: string | null   // null = in progress
-  location?: string
-  gpa?: string             // Optional (e.g., "3.8/4.0")
-  highlights?: string[]    // Achievements, activities
+  items: Array<{
+    institution: string      // Required, max 200 chars
+    degree: string           // Required, max 200 chars (e.g., "B.S. Computer Science")
+    field?: string           // Field of study, max 200 chars
+    startDate: string        // Format: YYYY-MM
+    endDate: string | null   // null = in progress
+    location?: string        // Max 100 chars
+    gpa?: string             // Optional (e.g., "3.8/4.0"), max 20 chars
+    highlights?: string[]    // Achievements, activities, max 10 items
+  }>                         // Max 20 items
 }
 ```
 
 ### Skill
 
-Individual skill entries, categorized by type.
+Skills grouped by category. Uses a **list-based schema** -- a single content item holds multiple skills in an `items` array.
 
 **Type**: `skill`
-**Slug**: Required (e.g., `typescript`, `react`)
+**Slug**: Required (e.g., `languages`, `frameworks`)
 
 #### Schema
 
 ```typescript
 interface SkillData {
-  name: string                                    // Required
-  category: 'language' | 'framework' | 'tool' | 'soft'  // Required
-  icon?: string                                   // Icon name or URL
-  proficiency?: 1 | 2 | 3 | 4 | 5                // Skill level
+  items: Array<{
+    name: string                                    // Required, max 100 chars
+    category: 'language' | 'framework' | 'tool' | 'soft'  // Required
+    icon?: string                                   // Icon name or URL, max 100 chars
+    proficiency?: 1 | 2 | 3 | 4 | 5                // Skill level
+  }>                                                // Max 100 items
 }
 ```
 
@@ -197,13 +211,23 @@ interface SkillData {
 ```json
 {
   "type": "skill",
-  "slug": "typescript",
+  "slug": "languages",
   "status": "published",
   "data": {
-    "name": "TypeScript",
-    "category": "language",
-    "icon": "typescript",
-    "proficiency": 5
+    "items": [
+      {
+        "name": "TypeScript",
+        "category": "language",
+        "icon": "typescript",
+        "proficiency": 5
+      },
+      {
+        "name": "Python",
+        "category": "language",
+        "icon": "python",
+        "proficiency": 4
+      }
+    ]
   }
 }
 ```
@@ -334,14 +358,14 @@ Body: { "version": 3 }
 
 ## Validation Summary
 
-| Type | Slug | Required Fields | Optional Fields |
-|------|------|-----------------|-----------------|
-| `project` | Yes | title, description | content, tags, links, coverImage, featured |
-| `experience` | Yes | company, role, startDate | description, endDate, location, type, skills |
-| `education` | Yes | institution, degree, startDate | field, endDate, location, gpa, highlights |
-| `skill` | Yes | name, category | icon, proficiency |
-| `about` | Yes | title, content | image |
-| `contact` | Yes | name, title, email, social | chatEnabled, chatSystemPrompt |
+| Type | Schema Style | Required Fields | Optional Fields |
+|------|-------------|-----------------|-----------------|
+| `project` | Flat object | title, description | content, tags, links, coverImage, featured |
+| `experience` | `items` array | items[].company, items[].role, items[].startDate | items[].description, items[].endDate, items[].location, items[].type, items[].skills |
+| `education` | `items` array | items[].institution, items[].degree, items[].startDate | items[].field, items[].endDate, items[].location, items[].gpa, items[].highlights |
+| `skill` | `items` array | items[].name, items[].category | items[].icon, items[].proficiency |
+| `about` | Flat object | title, content | image |
+| `contact` | Flat object | name, title, email, social | chatEnabled, chatSystemPrompt |
 
 ## Best Practices
 

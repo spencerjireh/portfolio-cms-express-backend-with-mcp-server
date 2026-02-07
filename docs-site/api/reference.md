@@ -27,11 +27,15 @@ curl -H "X-Admin-Key: your-api-key" \
   https://your-domain.com/api/v1/admin/content
 ```
 
-**Metrics endpoint** also requires admin authentication:
+**Metrics endpoint** and **MCP over HTTP endpoint** also require admin authentication:
 
 ```bash
 curl -H "X-Admin-Key: your-api-key" \
   https://your-domain.com/api/metrics
+
+curl -X POST -H "X-Admin-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  https://your-domain.com/api/mcp
 ```
 
 ### Common Headers
@@ -40,7 +44,8 @@ curl -H "X-Admin-Key: your-api-key" \
 
 | Header | Description | Required |
 |--------|-------------|----------|
-| `X-Admin-Key` | Admin API key | For admin endpoints and `/api/metrics` |
+| `X-Admin-Key` | Admin API key | For admin endpoints, `/api/metrics`, and `/api/mcp` |
+| `mcp-session-id` | MCP session identifier | For `/api/mcp` after initialization |
 | `Content-Type` | `application/json` | For POST/PUT requests |
 | `Idempotency-Key` | Unique request ID | Recommended for mutations |
 | `If-None-Match` | ETag for caching | Optional for GET requests |
@@ -72,17 +77,16 @@ curl -H "X-Admin-Key: your-api-key" \
 
 ### Rate Limiting
 
-The API uses token bucket rate limiting:
+The chat endpoint uses token bucket rate limiting per IP:
 
-- **Chat endpoint**: 5 tokens, refills at 1 per 3 seconds
-- **Content endpoints**: 100 tokens, refills at 10 per second
+- **Chat endpoint**: 5 tokens capacity (default), refills at 0.333 tokens/second (~1 per 3 seconds)
+- Configurable via `RATE_LIMIT_CAPACITY` and `RATE_LIMIT_REFILL_RATE` env vars
 
 When rate limited:
 
 ```http
 HTTP/1.1 429 Too Many Requests
 Retry-After: 30
-X-RateLimit-Remaining: 0
 ```
 
 ### Pagination
@@ -143,10 +147,9 @@ curl -H "If-None-Match: abc123" \
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/health` | Basic health check |
 | GET | `/api/health/live` | Liveness probe |
-| GET | `/api/health/ready` | Readiness probe |
-| GET | `/api/health/startup` | Startup probe |
+| GET | `/api/health/ready` | Readiness probe (checks DB) |
+| GET | `/api/health/startup` | Startup probe (uptime, version, environment) |
 | GET | `/api/metrics` | Prometheus metrics (requires `X-Admin-Key`) |
 
 ### Admin Content
@@ -167,6 +170,14 @@ curl -H "If-None-Match: abc123" \
 | GET | `/api/v1/admin/chat/sessions` | List chat sessions |
 | GET | `/api/v1/admin/chat/sessions/:id` | Get session with messages |
 | DELETE | `/api/v1/admin/chat/sessions/:id` | End/delete session |
+
+### MCP over HTTP
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/mcp` | MCP JSON-RPC requests (initialize, tool calls) |
+| GET | `/api/mcp` | SSE stream for server-initiated notifications |
+| DELETE | `/api/mcp` | Terminate MCP session |
 
 ---
 
@@ -270,27 +281,41 @@ Send a chat message and receive an AI response. The chat service includes input/
 
 ```json
 {
-  "sessionId": "session_abc123",
-  "message": "Tell me about your TypeScript experience"
+  "message": "Tell me about your TypeScript experience",
+  "visitorId": "visitor-unique-id"
 }
 ```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `message` | string | Yes | User message (1-2000 chars) |
+| `visitorId` | string | Yes | Client-generated visitor identifier (1-100 chars) |
+
+**Query Parameters**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `includeToolCalls` | boolean | `false` | Include tool call details in response |
 
 **Response**
 
 ```json
 {
-  "sessionId": "session_abc123",
+  "sessionId": "sess_abc123",
   "message": {
     "id": "msg_xyz789",
     "role": "assistant",
-    "content": "I have extensive experience with TypeScript..."
+    "content": "I have extensive experience with TypeScript...",
+    "createdAt": "2025-01-25T10:00:00Z"
   },
-  "rateLimit": {
-    "remaining": 4,
-    "resetAt": "2025-01-25T10:05:00Z"
-  }
+  "tokensUsed": 150,
+  "toolCalls": []
 }
 ```
+
+::: tip
+The `toolCalls` field is only included when `includeToolCalls=true` is passed as a query parameter.
+:::
 
 **Error Responses**
 
@@ -415,13 +440,9 @@ Returns the content item with the restored data and a new version number.
 
 ## Health Endpoints
 
-### GET /health
-
-Basic health check. Returns `{ "status": "ok" }`.
-
 ### GET /health/live
 
-Liveness probe for container orchestration.
+Liveness probe for container orchestration. Returns `{ "status": "ok" }`.
 
 ### GET /health/ready
 
@@ -438,7 +459,7 @@ Readiness probe. Checks database connectivity.
 }
 ```
 
-When degraded:
+When degraded (503):
 
 ```json
 {
@@ -451,11 +472,69 @@ When degraded:
 
 ### GET /health/startup
 
-Startup probe for container orchestration.
+Startup probe. Returns service information.
+
+**Response**
+
+```json
+{
+  "status": "started",
+  "uptime": 12345,
+  "version": "1.0.0",
+  "environment": "production"
+}
+```
 
 ### GET /metrics
 
 Prometheus metrics endpoint. **Requires `X-Admin-Key` header.**
+
+---
+
+## MCP over HTTP Endpoint
+
+The MCP server is available over Streamable HTTP at `/api/mcp`, protected by admin authentication. This endpoint implements the [Model Context Protocol](https://modelcontextprotocol.io/) over HTTP, enabling remote MCP clients to access portfolio tools, resources, and prompts.
+
+All three methods require the `X-Admin-Key` header. Sessions are stateful -- after initialization, include the `mcp-session-id` header returned by the server.
+
+### POST /api/mcp
+
+Send JSON-RPC requests to the MCP server. The first request must be an `initialize` request (no session ID). Subsequent requests must include the `mcp-session-id` header.
+
+**Headers**
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-Admin-Key` | Yes | Admin API key |
+| `Content-Type` | Yes | `application/json` |
+| `mcp-session-id` | After init | Session ID from initialization response |
+
+**Request Body** (initialize example)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-03-26",
+    "capabilities": {},
+    "clientInfo": { "name": "my-client", "version": "1.0.0" }
+  }
+}
+```
+
+**Response** includes an `mcp-session-id` header and the JSON-RPC response body.
+
+### GET /api/mcp
+
+Open an SSE (Server-Sent Events) stream for server-initiated notifications. Requires a valid `mcp-session-id` header.
+
+### DELETE /api/mcp
+
+Terminate an MCP session and clean up server-side resources. Requires a valid `mcp-session-id` header.
+
+For full details on available MCP tools, resources, and prompts, see the [MCP Server integration guide](/integrations/mcp-server).
 
 ---
 
@@ -489,11 +568,15 @@ interface ChatResponse {
     id: string
     role: 'assistant'
     content: string
+    createdAt: string
   }
-  rateLimit: {
-    remaining: number
-    resetAt: string
-  }
+  tokensUsed: number
+  toolCalls?: Array<{
+    id: string
+    name: string
+    arguments: Record<string, unknown>
+    result: string
+  }>
 }
 ```
 

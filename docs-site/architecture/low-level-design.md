@@ -20,6 +20,7 @@ flowchart TB
         R2["v1/chat<br/>POST /"]
         R3["v1/admin/*<br/>GET, POST, PUT, DELETE"]
         R4["health/*<br/>GET /live, /ready, /startup"]
+        R5["mcp/http<br/>POST, GET, DELETE /api/mcp"]
     end
 
     subgraph Services["SERVICES LAYER"]
@@ -46,6 +47,7 @@ flowchart TB
     R1 --> S1
     R2 --> S2
     R3 --> S1
+    R5 --> Repo1
 
     S1 --> Repo1
     S2 --> Repo2
@@ -717,9 +719,9 @@ flowchart TB
 
 | Category | Directory | Focus | Tools |
 |----------|-----------|-------|-------|
-| Unit | `tests/unit/` | Functions, classes in isolation | Vitest, mocks |
+| Unit | `tests/unit/` | Functions, classes in isolation | Jest (ts-jest ESM), mocks |
 | Integration | `tests/integration/` | API endpoints, DB operations | Supertest, in-memory SQLite |
-| E2E | `tests/e2e/` | Full user flows | Supertest, test containers |
+| E2E | `tests/e2e/` | Full HTTP and MCP flows | Supertest, in-memory SQLite |
 
 ### Database Testing Strategy
 
@@ -734,7 +736,7 @@ flowchart LR
     end
 
     subgraph E2E["E2E Tests"]
-        TestDB["Test Turso Database<br/>Separate DB<br/>Full fidelity"]
+        TestDB["In-Memory SQLite<br/>Full app boot<br/>Separate jest config"]
     end
 ```
 

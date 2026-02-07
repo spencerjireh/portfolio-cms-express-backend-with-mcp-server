@@ -121,15 +121,19 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  createdAt?: string
 }
 
 export interface ChatResponse {
   sessionId: string
   message: ChatMessage
-  rateLimit: {
-    remaining: number
-    resetAt: string
-  }
+  tokensUsed: number
+  toolCalls?: Array<{
+    id: string
+    name: string
+    arguments: Record<string, unknown>
+    result: string
+  }>
 }
 
 export interface ApiError {
@@ -162,7 +166,7 @@ try {
   const res = await fetch('/api/v1/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: 'Hello!', sessionId }),
+    body: JSON.stringify({ message: 'Hello!', visitorId: 'visitor-123' }),
   })
 
   if (res.status === 429) {
@@ -291,26 +295,31 @@ When building a chat component, handle these concerns:
 
 | Concern | Implementation |
 |---------|----------------|
-| **Session management** | Store `sessionId` from first response, send with subsequent messages |
-| **Rate limit display** | Show `rateLimit.remaining` from response |
-| **Error handling** | Check for `RATE_LIMITED` code, display `retryAfter` to user |
+| **Visitor ID** | Generate a unique `visitorId` per browser (e.g., UUID stored in localStorage) |
+| **Session tracking** | The backend manages sessions automatically based on `visitorId` |
+| **Error handling** | Check for `RATE_LIMITED` code (429), display `Retry-After` header to user |
 | **Loading state** | Disable input during API call |
 | **Optimistic UI** | Add user message to list immediately before API response |
 
 **State to track:**
 - `messages: ChatMessage[]` - conversation history
-- `sessionId: string | undefined` - persists across messages
+- `visitorId: string` - persistent identifier for this visitor
 - `isLoading: boolean` - disable input during request
-- `rateLimit: number | null` - from response, display to user
 
 ### Basic Implementation
 
 ```typescript
 function ChatWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [sessionId, setSessionId] = useState<string>()
+  const [visitorId] = useState(() =>
+    localStorage.getItem('visitorId') || (() => {
+      const id = crypto.randomUUID()
+      localStorage.setItem('visitorId', id)
+      return id
+    })()
+  )
   const [isLoading, setIsLoading] = useState(false)
-  const [rateLimit, setRateLimit] = useState<number | null>(null)
+  const [rateLimited, setRateLimited] = useState<number | null>(null)
 
   async function sendMessage(content: string) {
     // Add user message immediately (optimistic)
@@ -321,19 +330,18 @@ function ChatWidget() {
       const res = await fetch('/api/v1/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content, sessionId }),
+        body: JSON.stringify({ message: content, visitorId }),
       })
 
       if (res.status === 429) {
         const retryAfter = res.headers.get('Retry-After')
-        setRateLimit(Number(retryAfter))
+        setRateLimited(Number(retryAfter))
         return
       }
 
       const data: ChatResponse = await res.json()
-      setSessionId(data.sessionId)
       setMessages(prev => [...prev, data.message])
-      setRateLimit(data.rateLimit.remaining)
+      setRateLimited(null)
     } catch (error) {
       console.error('Chat error:', error)
     } finally {
@@ -348,8 +356,8 @@ function ChatWidget() {
           {msg.content}
         </div>
       ))}
-      {rateLimit !== null && rateLimit <= 2 && (
-        <p>Rate limit: {rateLimit} messages remaining</p>
+      {rateLimited !== null && (
+        <p>Rate limited. Please wait {rateLimited} seconds.</p>
       )}
       <ChatInput onSend={sendMessage} disabled={isLoading} />
     </div>

@@ -9,7 +9,7 @@ description: Model Context Protocol server and chat tool integration
 
 The portfolio backend provides AI tools through two interfaces:
 
-1. **MCP Server** -- a standalone [Model Context Protocol](https://modelcontextprotocol.io/) server for AI assistants like Claude Desktop. Supports 6 tools (read + write).
+1. **MCP Server** -- a [Model Context Protocol](https://modelcontextprotocol.io/) server for AI assistants like Claude Desktop. Supports 6 tools (read + write) via **two transports**: stdio (local) and Streamable HTTP (remote).
 2. **Chat Service** -- an OpenAI function-calling integration that gives the chat endpoint access to the 3 read-only tools.
 
 Both share the same core tool implementations in `src/tools/core/`, ensuring consistent behavior.
@@ -22,12 +22,45 @@ flowchart TB
         Search["searchContent()"]
     end
 
+    subgraph Transports["MCP Transports"]
+        Stdio["Stdio Transport\nbun run mcp\n(local, standalone process)"]
+        HTTP["Streamable HTTP Transport\nPOST/GET/DELETE /api/mcp\n(remote, Express-mounted)"]
+    end
+
     MCP["MCP Server\n6 tools (read + write)\nMCP SDK response format"]
     Chat["Chat Service\n3 tools (read only)\nOpenAI function calling"]
 
     SharedTools --> MCP
     SharedTools --> Chat
+    MCP --> Stdio
+    MCP --> HTTP
 ```
+
+## Transports
+
+The MCP server is available over two transports. Both expose the same tools, resources, and prompts.
+
+### Stdio (Local)
+
+The stdio transport runs the MCP server as a standalone child process. This is the standard approach for local AI assistants like Claude Desktop.
+
+- Start with: `bun run mcp`
+- Communication over stdin/stdout using JSON-RPC
+- Requires database environment variables to be set in the process
+
+### Streamable HTTP (Remote)
+
+The Streamable HTTP transport mounts the MCP server on the Express application at `/api/mcp`, protected by admin authentication.
+
+- **Endpoint**: `POST/GET/DELETE /api/mcp`
+- **Auth**: Requires `X-Admin-Key` header (same as other admin endpoints)
+- **Sessions**: Stateful sessions managed via the `mcp-session-id` response/request header
+- **Protocol**:
+  - `POST /api/mcp` -- Send JSON-RPC requests (initialize, tool calls, etc.)
+  - `GET /api/mcp` -- Open SSE stream for server-initiated notifications
+  - `DELETE /api/mcp` -- Terminate an MCP session
+
+This transport enables remote MCP clients, CI/CD integrations, and any HTTP-capable tool to interact with the MCP server without spawning a local process.
 
 ## Content Types
 
@@ -302,7 +335,7 @@ sequenceDiagram
 
 ## Configuration
 
-### Claude Desktop Setup
+### Claude Desktop Setup (Stdio)
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -324,51 +357,84 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 Restart Claude Desktop to activate the integration.
 
-### SSE Transport (Web-based clients)
+### Remote HTTP Setup
 
-For web-based MCP clients, the server exposes an SSE endpoint:
+For remote MCP clients that support HTTP transport, point them at the deployed server:
 
+```json
+{
+  "mcpServers": {
+    "portfolio": {
+      "url": "https://your-domain.com/api/mcp",
+      "headers": {
+        "X-Admin-Key": "your-admin-api-key"
+      }
+    }
+  }
+}
 ```
-GET /mcp/sse
-Headers:
-  Accept: text/event-stream
+
+**Testing with curl:**
+
+```bash
+# Initialize a new MCP session
+curl -X POST https://your-domain.com/api/mcp \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: your-admin-api-key" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2025-03-26",
+      "capabilities": {},
+      "clientInfo": { "name": "curl-test", "version": "1.0.0" }
+    }
+  }'
+# The response includes a mcp-session-id header for subsequent requests
 ```
 
 ### Environment Variables
 
+The MCP server requires the same database environment variables as the main application:
+
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `MCP_TRANSPORT` | `stdio` or `sse` | No (default: stdio) |
 | `TURSO_DATABASE_URL` | Database connection | Yes |
 | `TURSO_AUTH_TOKEN` | Database auth | Yes |
-| `ADMIN_API_KEY` | For write operations | For admin tools |
-| `LLM_API_KEY` | LLM provider API key | For chat only |
-| `LLM_MODEL` | Model to use | No (default: `gpt-4o-mini`) |
-| `LLM_MAX_TOKENS` | Maximum response tokens | No (default: `500`) |
-| `LLM_TEMPERATURE` | Response temperature | No (default: `0.7`) |
+| `ADMIN_API_KEY` | For write operations (min 32 chars) | Yes |
+| `LLM_API_KEY` | LLM provider API key | Yes |
 
 ## Shared Architecture
 
-The MCP server shares the same data layer as the REST API:
+The MCP server shares the same data layer as the REST API, regardless of transport:
 
 ```mermaid
 flowchart TB
+    StdioClient["Local MCP Client\n(Claude Desktop)"]
+    HTTPClient["Remote MCP Client\n(HTTP)"]
+
     subgraph App["Application"]
         REST["REST API (Express)"]
-        MCP["MCP Server (MCP SDK)"]
+        MCPHTTP["MCP HTTP Router\nPOST/GET/DELETE /api/mcp"]
+        MCPStdio["MCP Stdio Server\nbun run mcp"]
         Chat["Chat Service (OpenAI)"]
 
         REST --> Repo
-        MCP --> Repo
+        MCPHTTP --> Repo
+        MCPStdio --> Repo
         Chat --> Repo
 
         Repo["Content Repository"]
     end
 
+    StdioClient -->|stdio| MCPStdio
+    HTTPClient -->|HTTPS + X-Admin-Key| MCPHTTP
+
     Repo --> DB[(Turso DB)]
 ```
 
-This ensures consistent data access, shared validation schemas, and version history tracking.
+This ensures consistent data access, shared validation schemas, and version history tracking across both transports.
 
 **Schema conversion** for OpenAI function calling:
 

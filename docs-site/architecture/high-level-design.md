@@ -87,9 +87,11 @@ flowchart TB
 ```mermaid
 flowchart TB
     client["Client<br/><i>Browser or API consumer</i>"]
+    aiTools["AI Tools<br/><i>Remote MCP clients</i>"]
 
     subgraph app["Express Application"]
         routes["Routes Layer<br/><i>Public, Admin, Health</i>"]
+        mcpHTTP["MCP HTTP Router<br/><i>POST/GET/DELETE /api/mcp</i>"]
         middleware["Middleware Stack<br/><i>Security, Context, Logger, Rate Limit</i>"]
         services["Services Layer<br/><i>ContentService, ChatService</i>"]
         repos["Repositories<br/><i>Drizzle ORM</i>"]
@@ -104,8 +106,10 @@ flowchart TB
     end
 
     client --> routes
+    aiTools --> mcpHTTP
     routes --> middleware
     middleware --> services
+    mcpHTTP --> repos
     services --> repos
     repos --> turso
     infra --> redis
@@ -121,7 +125,7 @@ flowchart TB
 | **Services** | TypeScript | Business logic, orchestration |
 | **Repositories** | Drizzle ORM | Data access abstraction |
 | **Infrastructure** | Various | Cross-cutting concerns |
-| **MCP Server** | MCP SDK | AI tool integration |
+| **MCP Server** | MCP SDK | AI tool integration (stdio + HTTP transports) |
 
 ::: tip
 For detailed rationale on architectural decisions, see the [Architecture Decision Records](/decisions/).

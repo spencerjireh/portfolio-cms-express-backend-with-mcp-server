@@ -94,6 +94,7 @@ flowchart TB
 
 ### MCP Server
 
+- Dual transport: stdio (local) and Streamable HTTP (remote via `/api/mcp`)
 - Tools for CRUD operations
 - Resources for reading content
 - Prompts for common use cases
@@ -112,3 +113,4 @@ Key decisions are documented as ADRs:
 | [005](/decisions/005-observability) | Events and OpenTelemetry tracing |
 | [006](/decisions/006-pii-obfuscation) | Guardrails-based PII protection |
 | [007](/decisions/007-content-model-flexibility) | Flexible content model |
+| [008](/decisions/008-shared-tools-architecture) | Shared tools architecture |
