@@ -12,6 +12,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:seed": "bun src/seed/index.ts",
     "mcp": "bun src/mcp/server.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
