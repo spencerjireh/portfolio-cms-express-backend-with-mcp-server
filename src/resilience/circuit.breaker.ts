@@ -1,4 +1,4 @@
-import { LLMError } from '@/errors/app-error'
+import { LLMError } from '@/errors/app.error'
 import { eventEmitter } from '@/events'
 import type { CircuitState } from '@/events/event-map'
 

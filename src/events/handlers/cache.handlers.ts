@@ -1,4 +1,4 @@
-import { eventEmitter } from '../event-emitter'
+import { eventEmitter } from '@/events'
 import { getCache, CacheKeys } from '@/cache'
 import { logger } from '@/lib/logger'
 import type {
@@ -6,7 +6,7 @@ import type {
   ContentUpdatedEvent,
   ContentDeletedEvent,
   ContentRestoredEvent,
-} from '../event-map'
+} from '@/events/event-map'
 
 /**
  * Invalidate cache entries related to content changes.

@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'crypto'
 import type { Request, Response, NextFunction, RequestHandler } from 'express'
-import { UnauthorizedError } from '@/errors/app-error'
+import { UnauthorizedError } from '@/errors/app.error'
 import { env } from '@/config/env'
 
 const ADMIN_KEY_HEADER = 'x-admin-key'

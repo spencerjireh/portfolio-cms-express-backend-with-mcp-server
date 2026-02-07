@@ -4,7 +4,8 @@
  */
 
 export { PROFILE_DATA, type ProfileData } from './data'
-export { deriveSeedContent, type CreateContentDto } from './content'
+export { deriveSeedContent } from './content'
+export type { CreateContentDto } from '@/db/models'
 export { groundTruths, assertionRegex } from './ground-truths'
 
 // Seed script entry point

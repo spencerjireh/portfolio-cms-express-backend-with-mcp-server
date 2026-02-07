@@ -1,20 +1,10 @@
-import { Router, type Request, type Response, type NextFunction } from 'express'
+import { Router, type Request, type Response } from 'express'
 import { contentService } from '@/services/content.service'
-import { adminAuthMiddleware } from '@/middleware/admin-auth'
-import { idempotencyMiddleware } from '@/middleware/idempotency'
+import { adminAuthMiddleware } from '@/middleware/admin-auth.middleware'
+import { idempotencyMiddleware } from '@/middleware/idempotency.middleware'
+import { asyncHandler } from '@/lib/async-handler'
 
 export const adminContentRouter = Router()
-
-/**
- * Async handler wrapper to forward promise rejections to error handler.
- */
-function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
-): (req: Request, res: Response, next: NextFunction) => void {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next)
-  }
-}
 
 // Apply admin auth to all routes
 adminContentRouter.use(adminAuthMiddleware())

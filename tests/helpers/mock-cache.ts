@@ -1,4 +1,4 @@
-import type { CacheProvider, TokenBucket } from '@/cache/cache.interface'
+import type { CacheProvider, TokenBucket } from '@/cache'
 
 interface CacheEntry<T = unknown> {
   value: T

@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express'
 // Mock request context
 const mockGetRequestContext = jest.fn(() => ({ requestId: 'test-request-id' }))
 
-jest.unstable_mockModule('@/middleware/request-context', () => ({
+jest.unstable_mockModule('@/middleware/request-context.middleware', () => ({
   getRequestContext: mockGetRequestContext,
 }))
 
@@ -14,13 +14,13 @@ jest.unstable_mockModule('@/config/env', () => ({
   },
 }))
 
-describe('errorHandler', () => {
-  let errorHandler: typeof import('@/middleware/error-handler').errorHandler
-  let AppError: typeof import('@/errors/app-error').AppError
-  let ValidationError: typeof import('@/errors/app-error').ValidationError
-  let NotFoundError: typeof import('@/errors/app-error').NotFoundError
-  let UnauthorizedError: typeof import('@/errors/app-error').UnauthorizedError
-  let RateLimitError: typeof import('@/errors/app-error').RateLimitError
+describe('errorHandlerMiddleware', () => {
+  let errorHandlerMiddleware: typeof import('@/middleware/error.middleware').errorHandlerMiddleware
+  let AppError: typeof import('@/errors/app.error').AppError
+  let ValidationError: typeof import('@/errors/app.error').ValidationError
+  let NotFoundError: typeof import('@/errors/app.error').NotFoundError
+  let UnauthorizedError: typeof import('@/errors/app.error').UnauthorizedError
+  let RateLimitError: typeof import('@/errors/app.error').RateLimitError
 
   let mockReq: Partial<Request>
   let mockRes: Partial<Response>
@@ -34,10 +34,10 @@ describe('errorHandler', () => {
     mockGetRequestContext.mockReturnValue({ requestId: 'test-request-id' })
 
     // Dynamic imports to apply mocks
-    const errorHandlerModule = await import('@/middleware/error-handler')
-    errorHandler = errorHandlerModule.errorHandler
+    const errorHandlerModule = await import('@/middleware/error.middleware')
+    errorHandlerMiddleware = errorHandlerModule.errorHandlerMiddleware
 
-    const errorsModule = await import('@/errors/app-error')
+    const errorsModule = await import('@/errors/app.error')
     AppError = errorsModule.AppError
     ValidationError = errorsModule.ValidationError
     NotFoundError = errorsModule.NotFoundError
@@ -64,7 +64,7 @@ describe('errorHandler', () => {
     it('should handle AppError with correct status and response', () => {
       const error = new AppError('Test error', 'TEST_CODE', 500)
 
-      errorHandler(error, mockReq as Request, mockRes as Response, mockNext)
+      errorHandlerMiddleware(error, mockReq as Request, mockRes as Response, mockNext)
 
       expect(statusMock).toHaveBeenCalledWith(500)
       expect(jsonMock).toHaveBeenCalledWith({
@@ -79,7 +79,7 @@ describe('errorHandler', () => {
     it('should handle NotFoundError', () => {
       const error = new NotFoundError('Resource', 'id-123')
 
-      errorHandler(error, mockReq as Request, mockRes as Response, mockNext)
+      errorHandlerMiddleware(error, mockReq as Request, mockRes as Response, mockNext)
 
       expect(statusMock).toHaveBeenCalledWith(404)
       expect(jsonMock).toHaveBeenCalledWith({
@@ -94,7 +94,7 @@ describe('errorHandler', () => {
     it('should handle UnauthorizedError', () => {
       const error = new UnauthorizedError('Access denied')
 
-      errorHandler(error, mockReq as Request, mockRes as Response, mockNext)
+      errorHandlerMiddleware(error, mockReq as Request, mockRes as Response, mockNext)
 
       expect(statusMock).toHaveBeenCalledWith(401)
       expect(jsonMock).toHaveBeenCalledWith({
@@ -114,7 +114,7 @@ describe('errorHandler', () => {
         password: ['Too short'],
       })
 
-      errorHandler(error, mockReq as Request, mockRes as Response, mockNext)
+      errorHandlerMiddleware(error, mockReq as Request, mockRes as Response, mockNext)
 
       expect(statusMock).toHaveBeenCalledWith(400)
       expect(jsonMock).toHaveBeenCalledWith({
@@ -133,7 +133,7 @@ describe('errorHandler', () => {
     it('should not include empty fields object', () => {
       const error = new ValidationError('Invalid input', {})
 
-      errorHandler(error, mockReq as Request, mockRes as Response, mockNext)
+      errorHandlerMiddleware(error, mockReq as Request, mockRes as Response, mockNext)
 
       const response = jsonMock.mock.calls[0][0]
       expect(response.error.fields).toBeUndefined()
@@ -144,7 +144,7 @@ describe('errorHandler', () => {
     it('should set Retry-After header', () => {
       const error = new RateLimitError(60)
 
-      errorHandler(error, mockReq as Request, mockRes as Response, mockNext)
+      errorHandlerMiddleware(error, mockReq as Request, mockRes as Response, mockNext)
 
       expect(statusMock).toHaveBeenCalledWith(429)
       expect(setHeaderMock).toHaveBeenCalledWith('Retry-After', '60')
@@ -163,7 +163,7 @@ describe('errorHandler', () => {
     it('should handle generic Error', () => {
       const error = new Error('Something went wrong')
 
-      errorHandler(error, mockReq as Request, mockRes as Response, mockNext)
+      errorHandlerMiddleware(error, mockReq as Request, mockRes as Response, mockNext)
 
       expect(statusMock).toHaveBeenCalledWith(500)
       expect(jsonMock).toHaveBeenCalledWith({
@@ -180,7 +180,7 @@ describe('errorHandler', () => {
     it('should include requestId from context', () => {
       const error = new AppError('Test', 'TEST', 500)
 
-      errorHandler(error, mockReq as Request, mockRes as Response, mockNext)
+      errorHandlerMiddleware(error, mockReq as Request, mockRes as Response, mockNext)
 
       const response = jsonMock.mock.calls[0][0]
       expect(response.error.requestId).toBe('test-request-id')
@@ -190,7 +190,7 @@ describe('errorHandler', () => {
       mockGetRequestContext.mockReturnValue(undefined)
       const error = new AppError('Test', 'TEST', 500)
 
-      errorHandler(error, mockReq as Request, mockRes as Response, mockNext)
+      errorHandlerMiddleware(error, mockReq as Request, mockRes as Response, mockNext)
 
       const response = jsonMock.mock.calls[0][0]
       expect(response.error.requestId).toBeUndefined()

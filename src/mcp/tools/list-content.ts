@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { listContent } from '@/tools/core'
-import { ListContentInputSchema } from '../types'
+import { ListContentInputSchema } from '../schemas'
 
 export function registerListContent(server: McpServer) {
   server.tool(

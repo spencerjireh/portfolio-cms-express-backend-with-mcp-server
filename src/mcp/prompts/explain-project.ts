@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
-import { ExplainProjectPromptArgsShape } from '../types'
+import { ExplainProjectPromptArgsShape } from '../schemas'
 import type { ProjectData } from '@/validation/content.schemas'
 
 export function registerExplainProject(server: McpServer) {

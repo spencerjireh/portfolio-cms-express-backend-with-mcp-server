@@ -45,7 +45,7 @@ jest.mock('@/observability/metrics', () => ({
 }))
 
 // Mock the metrics middleware
-jest.mock('@/observability/metrics-middleware', () => ({
+jest.mock('@/observability/metrics.middleware', () => ({
   metricsMiddleware: jest.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
 }))
 

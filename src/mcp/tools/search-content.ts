@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { searchContent } from '@/tools/core'
-import { SearchContentInputSchema } from '../types'
+import { SearchContentInputSchema } from '../schemas'
 
 export function registerSearchContent(server: McpServer) {
   server.tool(

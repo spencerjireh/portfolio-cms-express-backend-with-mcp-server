@@ -5,7 +5,7 @@ import {
   chatSessionsActive,
   circuitBreakerState,
   rateLimitHitsTotal,
-} from '@/observability/metrics'
+} from '@/observability'
 import { logger } from '@/lib/logger'
 
 const CIRCUIT_STATE_VALUES: Record<string, number> = {

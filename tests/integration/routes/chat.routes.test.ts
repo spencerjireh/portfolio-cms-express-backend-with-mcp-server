@@ -39,6 +39,9 @@ jest.unstable_mockModule('@/events', () => ({
 
 jest.unstable_mockModule('@/resilience', () => ({
   rateLimiter: mockRateLimiter,
+  CircuitBreaker: jest.fn().mockImplementation(() => ({
+    execute: async (fn: () => Promise<unknown>) => fn(),
+  })),
 }))
 
 jest.unstable_mockModule('@/llm', () => ({
@@ -52,13 +55,6 @@ jest.unstable_mockModule('@/tools', () => ({
   executeToolCall: mockExecuteToolCall,
 }))
 
-// Mock circuit breaker to just execute the function
-jest.unstable_mockModule('@/resilience/circuit-breaker', () => ({
-  CircuitBreaker: jest.fn().mockImplementation(() => ({
-    execute: async (fn: () => Promise<unknown>) => fn(),
-  })),
-}))
-
 describe('Chat Routes Integration', () => {
   let app: Express
 
@@ -69,17 +65,17 @@ describe('Chat Routes Integration', () => {
     mockRateLimiter.consume.mockResolvedValue({ allowed: true, remaining: 9 })
 
     // Dynamic import to apply mocks
-    const { chatRouter } = await import('@/routes/v1/chat')
-    const { errorHandler } = await import('@/middleware/error-handler')
-    const { requestIdMiddleware } = await import('@/middleware/request-id')
-    const { requestContextMiddleware } = await import('@/middleware/request-context')
+    const { chatRouter } = await import('@/routes/v1/chat.routes')
+    const { errorHandlerMiddleware } = await import('@/middleware/error.middleware')
+    const { requestIdMiddleware } = await import('@/middleware/request-id.middleware')
+    const { requestContextMiddleware } = await import('@/middleware/request-context.middleware')
 
     app = express()
     app.use(requestIdMiddleware())
     app.use(requestContextMiddleware())
     app.use(express.json())
     app.use('/api/v1/chat', chatRouter)
-    app.use(errorHandler)
+    app.use(errorHandlerMiddleware)
   })
 
   afterEach(() => {

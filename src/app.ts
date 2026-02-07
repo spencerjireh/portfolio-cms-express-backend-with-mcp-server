@@ -1,19 +1,19 @@
 import express from 'express'
 import compression from 'compression'
-import { requestIdMiddleware } from './middleware/request-id'
-import { requestContextMiddleware } from './middleware/request-context'
-import { requestTimeoutMiddleware } from './middleware/request-timeout'
-import { securityMiddleware } from './middleware/security'
-import { corsMiddleware } from './middleware/cors'
+import { requestIdMiddleware } from '@/middleware/request-id.middleware'
+import { requestContextMiddleware } from '@/middleware/request-context.middleware'
+import { requestTimeoutMiddleware } from '@/middleware/request-timeout.middleware'
+import { securityMiddleware } from '@/middleware/security.middleware'
+import { corsMiddleware } from '@/middleware/cors.middleware'
 import { httpLogger } from './lib/logger'
-import { errorHandler } from './middleware/error-handler'
-import { NotFoundError } from './errors/app-error'
-import { healthRouter } from './routes/health'
-import { metricsRouter } from './routes/metrics'
-import { contentRouter } from './routes/v1/content'
-import { chatRouter } from './routes/v1/chat'
-import { adminContentRouter } from './routes/v1/admin/content'
-import { adminChatRouter } from './routes/v1/admin/chat'
+import { errorHandlerMiddleware } from '@/middleware/error.middleware'
+import { NotFoundError } from './errors/app.error'
+import { healthRouter } from './routes/health.routes'
+import { metricsRouter } from './routes/metrics.routes'
+import { contentRouter } from './routes/v1/content.routes'
+import { chatRouter } from './routes/v1/chat.routes'
+import { adminContentRouter } from './routes/v1/admin/content.routes'
+import { adminChatRouter } from './routes/v1/admin/chat.routes'
 import { metricsMiddleware } from './observability'
 import { env } from './config/env'
 
@@ -60,7 +60,7 @@ export function createApp() {
     next(new NotFoundError('Route'))
   })
 
-  app.use(errorHandler)
+  app.use(errorHandlerMiddleware)
 
   return app
 }

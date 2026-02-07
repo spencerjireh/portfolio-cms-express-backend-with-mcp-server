@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from 'express'
-import { AppError, ValidationError, RateLimitError } from '../errors/app-error'
-import { getRequestContext } from './request-context'
-import { logger } from '../lib/logger'
-import { env } from '../config/env'
+import { AppError, ValidationError, RateLimitError } from '@/errors/app.error'
+import { getRequestContext } from './request-context.middleware'
+import { logger } from '@/lib/logger'
+import { env } from '@/config/env'
 
 interface ErrorResponse {
   error: {
@@ -15,7 +15,7 @@ interface ErrorResponse {
   }
 }
 
-export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
+export function errorHandlerMiddleware(err: Error, _req: Request, res: Response, _next: NextFunction): void {
   const context = getRequestContext()
   const requestId = context?.requestId
 

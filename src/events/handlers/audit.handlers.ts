@@ -1,4 +1,4 @@
-import { eventEmitter } from '../event-emitter'
+import { eventEmitter } from '@/events'
 import { logger } from '@/lib/logger'
 
 /**

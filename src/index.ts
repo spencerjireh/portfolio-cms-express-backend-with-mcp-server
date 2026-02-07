@@ -1,13 +1,13 @@
 import { sql } from 'drizzle-orm'
-import { createApp } from './app'
-import { env } from './config/env'
-import { logger } from './lib/logger'
-import { db, client } from './db/client'
-import { createCache, closeCache } from './cache'
-import { registerCacheHandlers } from './events/handlers/cache-handler'
-import { registerAuditHandlers } from './events/handlers/audit-handler'
-import { registerMetricsHandlers } from './events/handlers/metrics-handler'
-import { initializeMetrics, initializeTracing } from './observability'
+import { createApp } from '@/app'
+import { env } from '@/config/env'
+import { logger } from '@/lib/logger'
+import { db, client } from '@/db/client'
+import { createCache, closeCache } from '@/cache'
+import { registerCacheHandlers } from '@/events/handlers/cache.handlers'
+import { registerAuditHandlers } from '@/events/handlers/audit.handlers'
+import { registerMetricsHandlers } from '@/events/handlers/metrics.handlers'
+import { initializeMetrics, initializeTracing } from '@/observability'
 
 async function start() {
   // Initialize metrics and tracing
@@ -39,7 +39,11 @@ async function start() {
 
   async function shutdown(signal: string) {
     logger.info({ signal }, 'Shutdown signal received')
+    let isCleanedUp = false
+
     server.close(async () => {
+      if (isCleanedUp) return
+      isCleanedUp = true
       logger.info('Server closed')
       await closeCache()
       client.close()
@@ -48,6 +52,8 @@ async function start() {
     })
 
     setTimeout(async () => {
+      if (isCleanedUp) return
+      isCleanedUp = true
       logger.error('Forced shutdown after timeout')
       await closeCache()
       client.close()

@@ -1,4 +1,4 @@
-import { LLMError } from '@/errors/app-error'
+import { LLMError } from '@/errors/app.error'
 
 export interface RetryOptions {
   /** Maximum number of retry attempts. Default: 3 */
@@ -9,6 +9,19 @@ export interface RetryOptions {
   maxDelayMs?: number
   /** Multiplier for exponential backoff. Default: 2 */
   backoffMultiplier?: number
+}
+
+function isNetworkError(message: string): boolean {
+  return (
+    message.includes('network') ||
+    message.includes('econnrefused') ||
+    message.includes('enotfound') ||
+    message.includes('etimedout') ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('fetch failed') ||
+    message.includes('socket hang up')
+  )
 }
 
 /**
@@ -40,19 +53,12 @@ export function isRetryableError(error: Error): boolean {
       return true
     }
 
-    // Network errors
-    if (
-      message.includes('network') ||
-      message.includes('connection') ||
-      message.includes('econnrefused') ||
-      message.includes('enotfound') ||
-      message.includes('etimedout')
-    ) {
+    // LLM-specific connection errors
+    if (message.includes('connection')) {
       return true
     }
 
-    // Timeout errors
-    if (message.includes('timeout') || message.includes('timed out')) {
+    if (isNetworkError(message)) {
       return true
     }
   }
@@ -64,15 +70,7 @@ export function isRetryableError(error: Error): boolean {
   }
 
   // Check for generic network errors
-  const message = error.message.toLowerCase()
-  if (
-    message.includes('fetch failed') ||
-    message.includes('network') ||
-    message.includes('econnrefused') ||
-    message.includes('enotfound') ||
-    message.includes('etimedout') ||
-    message.includes('socket hang up')
-  ) {
+  if (isNetworkError(error.message.toLowerCase())) {
     return true
   }
 

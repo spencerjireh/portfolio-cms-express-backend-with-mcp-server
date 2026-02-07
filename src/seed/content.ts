@@ -4,15 +4,7 @@
  */
 
 import { PROFILE_DATA } from './data'
-import type { ContentType } from '@/db/schema'
-
-export interface CreateContentDto {
-  type: ContentType
-  slug: string
-  data: Record<string, unknown>
-  status: 'draft' | 'published' | 'archived'
-  sortOrder: number
-}
+import type { CreateContentDto } from '@/db/models'
 
 /**
  * Derives seed content from PROFILE_DATA.

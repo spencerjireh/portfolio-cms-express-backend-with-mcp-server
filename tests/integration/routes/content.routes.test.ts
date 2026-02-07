@@ -30,17 +30,17 @@ describe('Content Routes Integration', () => {
     jest.clearAllMocks()
 
     // Dynamic import to apply mocks
-    const { contentRouter } = await import('@/routes/v1/content')
-    const { errorHandler } = await import('@/middleware/error-handler')
-    const { requestIdMiddleware } = await import('@/middleware/request-id')
-    const { requestContextMiddleware } = await import('@/middleware/request-context')
+    const { contentRouter } = await import('@/routes/v1/content.routes')
+    const { errorHandlerMiddleware } = await import('@/middleware/error.middleware')
+    const { requestIdMiddleware } = await import('@/middleware/request-id.middleware')
+    const { requestContextMiddleware } = await import('@/middleware/request-context.middleware')
 
     app = express()
     app.use(requestIdMiddleware())
     app.use(requestContextMiddleware())
     app.use(express.json())
     app.use('/api/v1/content', contentRouter)
-    app.use(errorHandler)
+    app.use(errorHandlerMiddleware)
   })
 
   afterEach(() => {

@@ -8,9 +8,9 @@ const originalCrypto = global.crypto
 const mockUUID = '550e8400-e29b-41d4-a716-446655440000'
 
 describe('requestContextMiddleware', () => {
-  let requestContextMiddleware: typeof import('@/middleware/request-context').requestContextMiddleware
-  let getRequestContext: typeof import('@/middleware/request-context').getRequestContext
-  let requestContext: typeof import('@/middleware/request-context').requestContext
+  let requestContextMiddleware: typeof import('@/middleware/request-context.middleware').requestContextMiddleware
+  let getRequestContext: typeof import('@/middleware/request-context.middleware').getRequestContext
+  let requestContext: typeof import('@/middleware/request-context.middleware').requestContext
 
   let mockReq: Partial<Request>
   let mockRes: Partial<Response>
@@ -26,7 +26,7 @@ describe('requestContextMiddleware', () => {
     jest.resetModules()
 
     // Dynamic import after setting up mocks
-    const module = await import('@/middleware/request-context')
+    const module = await import('@/middleware/request-context.middleware')
     requestContextMiddleware = module.requestContextMiddleware
     getRequestContext = module.getRequestContext
     requestContext = module.requestContext
@@ -95,12 +95,12 @@ describe('requestContextMiddleware', () => {
 })
 
 describe('getRequestContext', () => {
-  let getRequestContext: typeof import('@/middleware/request-context').getRequestContext
-  let requestContext: typeof import('@/middleware/request-context').requestContext
+  let getRequestContext: typeof import('@/middleware/request-context.middleware').getRequestContext
+  let requestContext: typeof import('@/middleware/request-context.middleware').requestContext
 
   beforeEach(async () => {
     jest.resetModules()
-    const module = await import('@/middleware/request-context')
+    const module = await import('@/middleware/request-context.middleware')
     getRequestContext = module.getRequestContext
     requestContext = module.requestContext
   })

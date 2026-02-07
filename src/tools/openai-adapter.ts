@@ -4,30 +4,10 @@ import {
   ListContentInputSchema,
   GetContentInputSchema,
   SearchContentInputSchema,
-} from '@/mcp/types'
+} from '@/validation/tool.schemas'
 import { listContent, getContent, searchContent } from './core'
 import type { ToolResult } from './types'
-
-/**
- * OpenAI function definition format.
- */
-export interface FunctionDefinition {
-  name: string
-  description: string
-  parameters: Record<string, unknown>
-}
-
-/**
- * OpenAI tool call format.
- */
-export interface ToolCall {
-  id: string
-  type: 'function'
-  function: {
-    name: string
-    arguments: string
-  }
-}
+import type { FunctionDefinition, ToolCall } from '@/llm/types'
 
 /**
  * Tool definitions for OpenAI chat completions API.

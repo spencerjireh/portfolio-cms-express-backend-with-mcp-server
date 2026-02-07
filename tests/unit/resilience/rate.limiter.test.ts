@@ -32,7 +32,7 @@ describe('RateLimiter', () => {
     }))
 
     // Clear the module cache to apply mocks
-    const { RateLimiter } = await import('@/resilience/rate-limiter')
+    const { RateLimiter } = await import('@/resilience/rate.limiter')
     return new RateLimiter(capacity, refillRate, ttl)
   }
 

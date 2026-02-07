@@ -1,6 +1,6 @@
 import type { CacheProvider } from './cache.interface'
-import { MemoryCache } from './memory-cache'
-import { RedisCache } from './redis-cache'
+import { MemoryCache } from './memory.cache'
+import { RedisCache } from './redis.cache'
 import { env } from '@/config/env'
 import { logger } from '@/lib/logger'
 

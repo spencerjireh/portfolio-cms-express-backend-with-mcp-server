@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
-import { LLMError } from '@/errors/app-error'
+import { LLMError } from '@/errors/app.error'
 
 // Create mock event emitter
 const mockEmit = jest.fn()
@@ -12,12 +12,12 @@ jest.unstable_mockModule('@/events', () => ({
 }))
 
 describe('CircuitBreaker', () => {
-  let CircuitBreaker: typeof import('@/resilience/circuit-breaker').CircuitBreaker
+  let CircuitBreaker: typeof import('@/resilience/circuit.breaker').CircuitBreaker
   let breaker: InstanceType<typeof CircuitBreaker>
 
   beforeEach(async () => {
     // Import CircuitBreaker dynamically to apply mocks
-    const module = await import('@/resilience/circuit-breaker')
+    const module = await import('@/resilience/circuit.breaker')
     CircuitBreaker = module.CircuitBreaker
 
     breaker = new CircuitBreaker({

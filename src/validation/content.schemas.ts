@@ -1,4 +1,5 @@
-import { z, type ZodError } from 'zod'
+import { z } from 'zod'
+import { parseZodErrors } from './parse-errors'
 import { contentTypeEnum, contentStatusEnum } from '@/db/schema'
 
 // Slug validation
@@ -205,17 +206,5 @@ export function validateContentData(
   return result.data as Record<string, unknown>
 }
 
-/**
- * Transform Zod errors into a field-level error map.
- */
-export function parseZodErrors(error: ZodError): Record<string, string[]> {
-  const fields: Record<string, string[]> = {}
-  for (const issue of error.issues) {
-    const path = issue.path.join('.') || '_root'
-    if (!fields[path]) {
-      fields[path] = []
-    }
-    fields[path].push(issue.message)
-  }
-  return fields
-}
+// Re-export for backward compatibility
+export { parseZodErrors } from './parse-errors'

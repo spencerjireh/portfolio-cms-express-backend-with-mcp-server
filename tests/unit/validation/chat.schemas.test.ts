@@ -3,8 +3,8 @@ import {
   SendMessageRequestSchema,
   SessionIdParamSchema,
   SessionListQuerySchema,
-  parseZodErrors,
 } from '@/validation/chat.schemas'
+import { parseZodErrors } from '@/validation/parse-errors'
 import { ZodError } from 'zod'
 
 describe('Chat Validation Schemas', () => {

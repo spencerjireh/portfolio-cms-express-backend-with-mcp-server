@@ -1,7 +1,7 @@
 import { eq, and, lt, desc, sql } from 'drizzle-orm'
-import { db } from '../db/client'
-import { chatSessions, chatMessages } from '../db/schema'
-import { sessionId, messageId } from '../lib/id'
+import { db } from '@/db/client'
+import { chatSessions, chatMessages } from '@/db/schema'
+import { sessionId, messageId } from '@/lib/id'
 import type {
   ChatSession,
   ChatMessage,
@@ -9,7 +9,7 @@ import type {
   CreateChatMessageDto,
   ChatStats,
   SessionStatus,
-} from '../db/types'
+} from '@/db/models'
 
 const SESSION_EXPIRY_HOURS = 24
 

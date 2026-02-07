@@ -26,20 +26,3 @@ export const SessionListQuerySchema = z.object({
 })
 
 export type SessionListQuery = z.infer<typeof SessionListQuerySchema>
-
-/**
- * Parses Zod errors into a field-to-messages map.
- */
-export function parseZodErrors(error: z.ZodError): Record<string, string[]> {
-  const fields: Record<string, string[]> = {}
-
-  for (const issue of error.issues) {
-    const path = issue.path.join('.') || '_root'
-    if (!fields[path]) {
-      fields[path] = []
-    }
-    fields[path].push(issue.message)
-  }
-
-  return fields
-}

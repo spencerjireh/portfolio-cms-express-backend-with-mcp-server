@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
-import { SummarizePortfolioPromptArgsShape } from '../types'
+import { SummarizePortfolioPromptArgsShape } from '../schemas'
 import type {
   ProjectData,
   SkillsListData,

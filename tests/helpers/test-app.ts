@@ -1,8 +1,8 @@
 import express, { type Express } from 'express'
-import { errorHandler } from '@/middleware/error-handler'
-import { requestIdMiddleware } from '@/middleware/request-id'
-import { requestContextMiddleware } from '@/middleware/request-context'
-import { NotFoundError } from '@/errors/app-error'
+import { errorHandlerMiddleware } from '@/middleware/error.middleware'
+import { requestIdMiddleware } from '@/middleware/request-id.middleware'
+import { requestContextMiddleware } from '@/middleware/request-context.middleware'
+import { NotFoundError } from '@/errors/app.error'
 
 /**
  * Creates a minimal Express app for testing.
@@ -30,7 +30,7 @@ export function createTestAppWithErrorHandler(): Express {
     next(new NotFoundError('Route'))
   })
 
-  app.use(errorHandler)
+  app.use(errorHandlerMiddleware)
 
   return app
 }
@@ -44,7 +44,7 @@ export function addErrorHandler(app: Express): Express {
     next(new NotFoundError('Route'))
   })
 
-  app.use(errorHandler)
+  app.use(errorHandlerMiddleware)
 
   return app
 }

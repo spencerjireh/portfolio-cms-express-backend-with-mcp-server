@@ -7,7 +7,7 @@ import {
   RateLimitError,
   ConflictError,
   LLMError,
-} from '@/errors/app-error'
+} from '@/errors/app.error'
 
 describe('AppError', () => {
   describe('constructor', () => {

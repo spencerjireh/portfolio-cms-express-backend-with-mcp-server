@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 import { isRetryableError, withRetry } from '@/llm/retry'
-import { LLMError } from '@/errors/app-error'
+import { LLMError } from '@/errors/app.error'
 
 describe('isRetryableError', () => {
   describe('LLMError handling', () => {

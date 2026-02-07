@@ -1,6 +1,6 @@
 import { env } from '@/config/env'
-import { LLMError } from '@/errors/app-error'
-import { llmRequestsTotal, llmRequestDuration } from '@/observability/metrics'
+import { LLMError } from '@/errors/app.error'
+import { llmRequestsTotal, llmRequestDuration } from '@/observability'
 import { withRetry } from './retry'
 import type { LLMProvider, LLMMessage, LLMOptions, LLMResponse, ToolCall } from './types'
 

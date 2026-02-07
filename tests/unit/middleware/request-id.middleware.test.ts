@@ -8,7 +8,7 @@ const originalCrypto = global.crypto
 const mockUUID = '550e8400-e29b-41d4-a716-446655440000'
 
 describe('requestIdMiddleware', () => {
-  let requestIdMiddleware: typeof import('@/middleware/request-id').requestIdMiddleware
+  let requestIdMiddleware: typeof import('@/middleware/request-id.middleware').requestIdMiddleware
   let mockReq: Partial<Request>
   let mockRes: Partial<Response>
   let mockNext: jest.Mock<NextFunction>
@@ -23,7 +23,7 @@ describe('requestIdMiddleware', () => {
     jest.resetModules()
 
     // Dynamic import after setting up mocks
-    const module = await import('@/middleware/request-id')
+    const module = await import('@/middleware/request-id.middleware')
     requestIdMiddleware = module.requestIdMiddleware
 
     mockReq = {

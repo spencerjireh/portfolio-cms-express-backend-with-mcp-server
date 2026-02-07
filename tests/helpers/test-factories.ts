@@ -1,5 +1,5 @@
 import type { ContentType, ContentStatus } from '@/db/schema'
-import type { ContentWithData, ChatSession, ChatMessage, ContentHistory } from '@/db/types'
+import type { ContentWithData, ChatSession, ChatMessage, ContentHistory } from '@/db/models'
 
 let idCounter = 0
 

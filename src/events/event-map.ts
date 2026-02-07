@@ -1,4 +1,4 @@
-import type { ContentType } from '@/db/types'
+import type { ContentType } from '@/db/models'
 
 // Content Events
 export interface ContentCreatedEvent {

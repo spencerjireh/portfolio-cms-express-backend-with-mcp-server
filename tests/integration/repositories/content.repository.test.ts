@@ -4,7 +4,7 @@ import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import { createTestDb, initializeSchema, cleanupTestDb, closeTestDb, type TestDb } from '../../helpers/test-db'
 import * as schema from '@/db/schema'
 import { content, contentHistory } from '@/db/schema'
-import type { ContentType, ContentWithData } from '@/db/types'
+import type { ContentType, ContentWithData } from '@/db/models'
 
 // Test repository that accepts a db instance
 class TestContentRepository {

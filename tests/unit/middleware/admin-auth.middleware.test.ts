@@ -1,7 +1,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 import { Request, Response, NextFunction } from 'express'
-import { adminAuthMiddleware } from '@/middleware/admin-auth'
-import { UnauthorizedError } from '@/errors/app-error'
+import { adminAuthMiddleware } from '@/middleware/admin-auth.middleware'
+import { UnauthorizedError } from '@/errors/app.error'
 import { getTestAdminKey, getInvalidAdminKey } from '../../helpers'
 
 describe('adminAuthMiddleware', () => {

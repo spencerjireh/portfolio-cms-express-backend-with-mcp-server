@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { getRequestContext } from './request-context'
+import { getRequestContext } from './request-context.middleware'
 
 export function requestIdMiddleware() {
   return (req: Request, res: Response, next: NextFunction) => {

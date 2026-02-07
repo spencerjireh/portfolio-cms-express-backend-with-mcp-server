@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
-import { MemoryCache } from '@/cache/memory-cache'
+import { MemoryCache } from '@/cache/memory.cache'
 
 describe('MemoryCache', () => {
   let cache: MemoryCache

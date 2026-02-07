@@ -1,6 +1,6 @@
 import { createClient, type Client } from '@libsql/client'
 import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql'
-import { env } from '../config/env'
+import { env } from '@/config/env'
 import * as schema from './schema'
 
 export const client: Client = createClient({

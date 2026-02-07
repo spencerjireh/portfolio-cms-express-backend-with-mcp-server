@@ -101,7 +101,7 @@ MCP server (`src/mcp/`) exposes a superset of chat tools:
 
 - Jest with ts-jest ESM preset - requires `NODE_OPTIONS='--experimental-vm-modules'`
 - Test helpers in `tests/helpers/`: test-factories, mock-cache, mock-llm, mock-env, test-app
-- Coverage thresholds: 80% global, 100% for admin-auth and rate-limiter
+- Coverage thresholds: 80% global, 100% for admin-auth.middleware and rate.limiter
 - Integration tests use in-memory SQLite via test-db helper
 
 ## API Authentication

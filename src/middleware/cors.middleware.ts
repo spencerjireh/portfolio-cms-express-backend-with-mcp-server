@@ -1,5 +1,5 @@
 import cors from 'cors'
-import { env } from '../config/env'
+import { env } from '@/config/env'
 
 export function corsMiddleware() {
   const origins = env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',').map((origin) => origin.trim()) : []

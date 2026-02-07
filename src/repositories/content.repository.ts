@@ -1,7 +1,7 @@
 import { eq, and, isNull, desc, asc } from 'drizzle-orm'
-import { db } from '../db/client'
-import { content, contentHistory } from '../db/schema'
-import { contentId, historyId } from '../lib/id'
+import { db } from '@/db/client'
+import { content, contentHistory } from '@/db/schema'
+import { contentId, historyId } from '@/lib/id'
 import type {
   Content,
   ContentHistory,
@@ -10,7 +10,7 @@ import type {
   CreateContentDto,
   UpdateContentDto,
   ContentType,
-} from '../db/types'
+} from '@/db/models'
 
 function parseContentData<T = Record<string, unknown>>(row: Content): ContentWithData<T> {
   return {

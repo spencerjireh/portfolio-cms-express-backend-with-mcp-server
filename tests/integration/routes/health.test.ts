@@ -25,7 +25,7 @@ describe('Health Routes', () => {
     mockExecute.mockResolvedValue({ rows: [{ '1': 1 }] })
 
     // Dynamic import to apply mocks
-    const { healthRouter } = await import('@/routes/health')
+    const { healthRouter } = await import('@/routes/health.routes')
 
     app = express()
     app.use('/health', healthRouter)

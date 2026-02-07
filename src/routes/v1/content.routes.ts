@@ -1,19 +1,9 @@
-import { Router, type Request, type Response, type NextFunction } from 'express'
+import { Router, type Request, type Response } from 'express'
 import { contentService } from '@/services/content.service'
 import { isStale, setCacheHeaders } from '@/lib/etag'
+import { asyncHandler } from '@/lib/async-handler'
 
 export const contentRouter = Router()
-
-/**
- * Async handler wrapper to forward promise rejections to error handler.
- */
-function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
-): (req: Request, res: Response, next: NextFunction) => void {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next)
-  }
-}
 
 /**
  * GET /api/v1/content

@@ -1,5 +1,5 @@
 import { contentRepository } from '@/repositories'
-import { NotFoundError, ValidationError, ConflictError } from '@/errors/app-error'
+import { NotFoundError, ValidationError, ConflictError } from '@/errors/app.error'
 import { generateETag } from '@/lib/etag'
 import { slugify, generateUniqueSlug } from '@/lib/slugify'
 import {
@@ -13,19 +13,13 @@ import {
   RestoreVersionRequestSchema,
   DeleteQuerySchema,
   validateContentData,
-  parseZodErrors,
 } from '@/validation/content.schemas'
-import type { ContentType, ContentWithData, ContentBundle, ContentHistory } from '@/db/types'
+import { validate } from '@/validation/validate'
+import type { ContentType, ContentWithData, ContentBundle, ContentHistory } from '@/db/models'
 import { eventEmitter } from '@/events'
+import type { ContentListOptions, ServiceResponse } from './content.types'
 
-interface ContentListOptions {
-  type?: ContentType
-}
-
-interface ServiceResponse<T> {
-  data: T
-  etag: string
-}
+export type { ContentListOptions, ServiceResponse } from './content.types'
 
 class ContentService {
   /**
@@ -74,22 +68,15 @@ class ContentService {
    * Validate and parse content list query parameters.
    */
   validateListQuery(query: unknown): ContentListOptions {
-    const result = ContentListQuerySchema.safeParse(query)
-    if (!result.success) {
-      throw new ValidationError('Invalid query parameters', parseZodErrors(result.error))
-    }
-    return { type: result.data.type }
+    const result = validate(ContentListQuerySchema, query, 'Invalid query parameters')
+    return { type: result.type }
   }
 
   /**
    * Validate and parse type/slug route parameters.
    */
   validateTypeSlugParams(params: unknown): { type: ContentType; slug: string } {
-    const result = ContentTypeSlugParamsSchema.safeParse(params)
-    if (!result.success) {
-      throw new ValidationError('Invalid parameters', parseZodErrors(result.error))
-    }
-    return result.data
+    return validate(ContentTypeSlugParamsSchema, params, 'Invalid parameters')
   }
 
   // ============================================
@@ -100,77 +87,49 @@ class ContentService {
    * Validate admin content list query parameters.
    */
   validateAdminListQuery(query: unknown) {
-    const result = AdminContentListQuerySchema.safeParse(query)
-    if (!result.success) {
-      throw new ValidationError('Invalid query parameters', parseZodErrors(result.error))
-    }
-    return result.data
+    return validate(AdminContentListQuerySchema, query, 'Invalid query parameters')
   }
 
   /**
    * Validate content ID parameter.
    */
   validateContentIdParam(params: unknown): { id: string } {
-    const result = ContentIdParamSchema.safeParse(params)
-    if (!result.success) {
-      throw new ValidationError('Invalid content ID', parseZodErrors(result.error))
-    }
-    return result.data
+    return validate(ContentIdParamSchema, params, 'Invalid content ID')
   }
 
   /**
    * Validate create content request.
    */
   validateCreateRequest(body: unknown) {
-    const result = CreateContentRequestSchema.safeParse(body)
-    if (!result.success) {
-      throw new ValidationError('Invalid request body', parseZodErrors(result.error))
-    }
-    return result.data
+    return validate(CreateContentRequestSchema, body, 'Invalid request body')
   }
 
   /**
    * Validate update content request.
    */
   validateUpdateRequest(body: unknown) {
-    const result = UpdateContentRequestSchema.safeParse(body)
-    if (!result.success) {
-      throw new ValidationError('Invalid request body', parseZodErrors(result.error))
-    }
-    return result.data
+    return validate(UpdateContentRequestSchema, body, 'Invalid request body')
   }
 
   /**
    * Validate history query parameters.
    */
   validateHistoryQuery(query: unknown) {
-    const result = HistoryQuerySchema.safeParse(query)
-    if (!result.success) {
-      throw new ValidationError('Invalid query parameters', parseZodErrors(result.error))
-    }
-    return result.data
+    return validate(HistoryQuerySchema, query, 'Invalid query parameters')
   }
 
   /**
    * Validate restore version request.
    */
   validateRestoreRequest(body: unknown) {
-    const result = RestoreVersionRequestSchema.safeParse(body)
-    if (!result.success) {
-      throw new ValidationError('Invalid request body', parseZodErrors(result.error))
-    }
-    return result.data
+    return validate(RestoreVersionRequestSchema, body, 'Invalid request body')
   }
 
   /**
    * Validate delete query parameters.
    */
   validateDeleteQuery(query: unknown) {
-    const result = DeleteQuerySchema.safeParse(query)
-    if (!result.success) {
-      throw new ValidationError('Invalid query parameters', parseZodErrors(result.error))
-    }
-    return result.data
+    return validate(DeleteQuerySchema, query, 'Invalid query parameters')
   }
 
   /**

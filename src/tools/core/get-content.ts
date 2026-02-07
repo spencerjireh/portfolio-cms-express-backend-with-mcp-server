@@ -1,5 +1,5 @@
 import { contentRepository } from '@/repositories/content.repository'
-import { GetContentInputSchema, type GetContentInput } from '@/mcp/types'
+import { GetContentInputSchema, type GetContentInput } from '@/validation/tool.schemas'
 import type { ToolResult, GetContentResult, ContentItem } from '../types'
 
 /**

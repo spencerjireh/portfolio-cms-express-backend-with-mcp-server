@@ -39,13 +39,13 @@ const config: Config = {
       functions: 80,
       statements: 80,
     },
-    './src/middleware/admin-auth.ts': {
+    './src/middleware/admin-auth.middleware.ts': {
       lines: 100,
       branches: 100,
       functions: 100,
       statements: 100,
     },
-    './src/resilience/rate-limiter.ts': {
+    './src/resilience/rate.limiter.ts': {
       lines: 100,
       branches: 100,
       functions: 100,

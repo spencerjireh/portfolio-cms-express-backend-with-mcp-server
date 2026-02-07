@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
-import { CompareSkillsArgsSchema, CompareSkillsPromptArgsShape } from '../types'
+import { CompareSkillsArgsSchema, CompareSkillsPromptArgsShape } from '../schemas'
 import type { SkillsListData } from '@/validation/content.schemas'
 
 export function registerCompareSkills(server: McpServer) {

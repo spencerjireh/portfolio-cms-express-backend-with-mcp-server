@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
-import { DeleteContentInputSchema } from '../types'
+import { DeleteContentInputSchema } from '../schemas'
 
 export function registerDeleteContent(server: McpServer) {
   server.tool(

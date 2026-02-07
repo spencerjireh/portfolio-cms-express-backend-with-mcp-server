@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals'
 import request from 'supertest'
 import express, { type Express, type Request, type Response, type NextFunction } from 'express'
-import { requestTimeoutMiddleware, RequestTimeoutError } from '@/middleware/request-timeout'
+import { requestTimeoutMiddleware, RequestTimeoutError } from '@/middleware/request-timeout.middleware'
 
 describe('requestTimeoutMiddleware', () => {
   let app: Express

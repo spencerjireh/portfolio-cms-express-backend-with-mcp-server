@@ -1,5 +1,5 @@
 import type { RequestHandler, Request, Response, NextFunction } from 'express'
-import { AppError } from '@/errors/app-error'
+import { AppError } from '@/errors/app.error'
 
 export interface TimeoutOptions {
   /** Default timeout in milliseconds. Default: 30000 (30s) */

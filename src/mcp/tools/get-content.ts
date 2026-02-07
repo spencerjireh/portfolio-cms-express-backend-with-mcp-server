@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getContent } from '@/tools/core'
-import { GetContentInputSchema } from '../types'
+import { GetContentInputSchema } from '../schemas'
 
 export function registerGetContent(server: McpServer) {
   server.tool(

@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
-import { CreateContentInputSchema } from '../types'
+import { CreateContentInputSchema } from '../schemas'
 import { validateContentData } from '@/validation/content.schemas'
 import type { ContentType } from '@/db/schema'
 

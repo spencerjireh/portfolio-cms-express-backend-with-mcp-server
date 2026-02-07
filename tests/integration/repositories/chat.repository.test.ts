@@ -4,7 +4,7 @@ import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import { createTestDb, initializeSchema, cleanupTestDb, closeTestDb, type TestDb } from '../../helpers/test-db'
 import * as schema from '@/db/schema'
 import { chatSessions, chatMessages } from '@/db/schema'
-import type { ChatSession, ChatMessage, SessionStatus, ChatStats } from '@/db/types'
+import type { ChatSession, ChatMessage, SessionStatus, ChatStats } from '@/db/models'
 
 const SESSION_EXPIRY_HOURS = 24
 

@@ -17,8 +17,8 @@ import {
   DeleteQuerySchema,
   RestoreVersionRequestSchema,
   validateContentData,
-  parseZodErrors,
 } from '@/validation/content.schemas'
+import { parseZodErrors } from '@/validation/parse-errors'
 import { ZodError } from 'zod'
 
 describe('Content Validation Schemas', () => {

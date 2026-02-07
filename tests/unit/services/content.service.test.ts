@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
-import type { ContentWithData, ContentBundle, ContentHistory } from '@/db/types'
+import type { ContentWithData, ContentBundle, ContentHistory } from '@/db/models'
 
 // Mock repository
 const mockContentRepository = {

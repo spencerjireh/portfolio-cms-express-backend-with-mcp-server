@@ -1,19 +1,9 @@
-import { Router, type Request, type Response, type NextFunction } from 'express'
+import { Router, type Request, type Response } from 'express'
 import { chatService } from '@/services/chat.service'
 import { extractClientIP, hashIP } from '@/lib/ip'
+import { asyncHandler } from '@/lib/async-handler'
 
 export const chatRouter = Router()
-
-/**
- * Async handler wrapper to forward promise rejections to error handler.
- */
-function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
-): (req: Request, res: Response, next: NextFunction) => void {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next)
-  }
-}
 
 /**
  * POST /api/v1/chat

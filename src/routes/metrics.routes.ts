@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { registry } from '@/observability/metrics'
+import { registry } from '@/observability'
 
 export const metricsRouter = Router()
 

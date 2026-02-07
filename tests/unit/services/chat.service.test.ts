@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
-import type { ChatSession, ChatMessage } from '@/db/types'
+import type { ChatSession, ChatMessage } from '@/db/models'
 
 // Mock repository
 const mockChatRepository = {
@@ -52,6 +52,9 @@ jest.unstable_mockModule('@/events', () => ({
 
 jest.unstable_mockModule('@/resilience', () => ({
   rateLimiter: mockRateLimiter,
+  CircuitBreaker: jest.fn().mockImplementation(() => ({
+    execute: async (fn: () => Promise<unknown>) => fn(),
+  })),
 }))
 
 jest.unstable_mockModule('@/llm', () => ({
