@@ -182,6 +182,8 @@ export interface EvalConfig {
   openaiKey: string
   apiBaseUrl?: string
   verbose?: boolean
+  /** Skip cleanup after evaluation run (for debugging) */
+  noClean?: boolean
   /** LLM judge model (default: EVAL_JUDGE_MODEL env var or 'gpt-4o-mini') */
   judgeModel?: string
   /** Path to save results JSON (enables regression tracking) */

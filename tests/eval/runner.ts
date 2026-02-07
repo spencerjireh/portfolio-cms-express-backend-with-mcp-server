@@ -32,6 +32,7 @@ export class EvalRunner {
   private openaiKey: string
   private apiBaseUrl: string
   private verbose: boolean
+  private noClean: boolean
   private judgeModel?: string
   private resultsPath?: string
 
@@ -43,6 +44,7 @@ export class EvalRunner {
     this.openaiKey = config.openaiKey
     this.apiBaseUrl = config.apiBaseUrl ?? 'http://localhost:3000'
     this.verbose = config.verbose ?? false
+    this.noClean = config.noClean ?? false
     this.judgeModel = config.judgeModel
     this.resultsPath = config.resultsPath
   }
@@ -91,15 +93,21 @@ export class EvalRunner {
       console.log('Cleaning up evaluation data...')
     }
 
-    // Delete eval sessions
+    // Delete eval sessions (visitor_id starts with 'eval-visitor-')
     await this.dbClient.execute({
-      sql: 'DELETE FROM chat_messages WHERE session_id LIKE ?',
-      args: [`${EVAL_SESSION_PREFIX}%`],
+      sql: 'DELETE FROM chat_messages WHERE session_id IN (SELECT id FROM chat_sessions WHERE visitor_id LIKE ?)',
+      args: ['eval-visitor-%'],
     })
 
     await this.dbClient.execute({
-      sql: 'DELETE FROM chat_sessions WHERE id LIKE ?',
-      args: [`${EVAL_SESSION_PREFIX}%`],
+      sql: 'DELETE FROM chat_sessions WHERE visitor_id LIKE ?',
+      args: ['eval-visitor-%'],
+    })
+
+    // Delete eval content history (FK cascade not enforced in SQLite by default)
+    await this.dbClient.execute({
+      sql: 'DELETE FROM content_history WHERE content_id LIKE ?',
+      args: [`${EVAL_CONTENT_PREFIX}%`],
     })
 
     // Delete eval content
@@ -479,8 +487,12 @@ export class EvalRunner {
       }
     }
 
-    // Cleanup
-    await this.clean()
+    // Cleanup (skip if --no-clean was passed)
+    if (!this.noClean) {
+      await this.clean()
+    } else if (this.verbose) {
+      console.log('Skipping cleanup (--no-clean)')
+    }
 
     // Compute summary
     const passed = results.filter((r) => r.passed).length

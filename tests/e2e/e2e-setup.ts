@@ -81,6 +81,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   resetMockLLM()
   await truncateAll()
+  const { getCache } = await import('@/cache/cache.factory')
+  await getCache().delPattern('*')
 })
 
 afterAll(async () => {
@@ -92,6 +94,8 @@ afterAll(async () => {
       httpServer = null
     }
     await stopMockLLMServer()
+    const { eventEmitter } = await import('@/events')
+    eventEmitter.removeAllListeners()
     const { closeCache } = await import('@/cache/cache.factory')
     await closeCache()
   }

@@ -73,6 +73,7 @@ async function main(): Promise<void> {
     openaiKey,
     apiBaseUrl,
     verbose: values.verbose === true,
+    noClean: values['no-clean'] === true,
   })
 
   try {
