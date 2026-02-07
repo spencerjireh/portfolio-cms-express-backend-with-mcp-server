@@ -1,4 +1,3 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 import { Request, Response, NextFunction } from 'express'
 import { adminAuthMiddleware } from '@/middleware/admin-auth.middleware'
 import { UnauthorizedError } from '@/errors/app.error'
@@ -7,14 +6,14 @@ import { getTestAdminKey, getInvalidAdminKey } from '../../helpers'
 describe('adminAuthMiddleware', () => {
   let mockReq: Partial<Request>
   let mockRes: Partial<Response>
-  let mockNext: jest.Mock<NextFunction>
+  let mockNext: vi.Mock<NextFunction>
 
   beforeEach(() => {
     mockReq = {
       headers: {},
     }
     mockRes = {}
-    mockNext = jest.fn()
+    mockNext = vi.fn()
   })
 
   describe('when X-Admin-Key header is missing', () => {

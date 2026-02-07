@@ -1,4 +1,3 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 import { generateETag, isStale, setCacheHeaders } from '@/lib/etag'
 import { Response } from 'express'
 
@@ -98,7 +97,7 @@ describe('setCacheHeaders', () => {
   beforeEach(() => {
     headers = {}
     mockRes = {
-      setHeader: jest.fn((name: string, value: string) => {
+      setHeader: vi.fn((name: string, value: string) => {
         headers[name] = value
         return mockRes as Response
       }),

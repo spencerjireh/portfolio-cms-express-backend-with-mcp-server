@@ -1,25 +1,23 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import request from 'supertest'
 import express, { type Express } from 'express'
 import { createContent, createProject, createAbout, createContact } from '../../helpers/test-factories'
 
-// Mock repository
-const mockContentRepository = {
-  findPublished: jest.fn(),
-  findBySlug: jest.fn(),
-  getBundle: jest.fn(),
-}
+const { mockContentRepository, mockEventEmitter } = vi.hoisted(() => ({
+  mockContentRepository: {
+    findPublished: vi.fn(),
+    findBySlug: vi.fn(),
+    getBundle: vi.fn(),
+  },
+  mockEventEmitter: {
+    emit: vi.fn(),
+  },
+}))
 
-// Mock event emitter
-const mockEventEmitter = {
-  emit: jest.fn(),
-}
-
-jest.unstable_mockModule('@/repositories', () => ({
+vi.mock('@/repositories', () => ({
   contentRepository: mockContentRepository,
 }))
 
-jest.unstable_mockModule('@/events', () => ({
+vi.mock('@/events', () => ({
   eventEmitter: mockEventEmitter,
 }))
 
@@ -27,7 +25,7 @@ describe('Content Routes Integration', () => {
   let app: Express
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
 
     // Dynamic import to apply mocks
     const { contentRouter } = await import('@/routes/v1/content.routes')
@@ -44,7 +42,7 @@ describe('Content Routes Integration', () => {
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   describe('GET /api/v1/content', () => {

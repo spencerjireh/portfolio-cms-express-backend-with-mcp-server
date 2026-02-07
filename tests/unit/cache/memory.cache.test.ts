@@ -1,4 +1,3 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import { MemoryCache } from '@/cache/memory.cache'
 
 describe('MemoryCache', () => {
@@ -49,7 +48,7 @@ describe('MemoryCache', () => {
       let currentTime = originalDateNow()
 
       // Mock Date.now
-      Date.now = jest.fn(() => currentTime)
+      Date.now = vi.fn(() => currentTime)
 
       await cache.set('key', 'value', 1) // 1 second TTL
 
@@ -70,7 +69,7 @@ describe('MemoryCache', () => {
       const originalDateNow = Date.now
       let currentTime = originalDateNow()
 
-      Date.now = jest.fn(() => currentTime)
+      Date.now = vi.fn(() => currentTime)
 
       await cache.set('key', 'value') // No TTL
 
@@ -149,7 +148,7 @@ describe('MemoryCache', () => {
     it('should apply TTL on increment', async () => {
       const originalDateNow = Date.now
       let currentTime = originalDateNow()
-      Date.now = jest.fn(() => currentTime)
+      Date.now = vi.fn(() => currentTime)
 
       await cache.incr('counter', 1) // 1 second TTL
 
@@ -204,7 +203,7 @@ describe('MemoryCache', () => {
     it('should apply TTL to token bucket', async () => {
       const originalDateNow = Date.now
       let currentTime = originalDateNow()
-      Date.now = jest.fn(() => currentTime)
+      Date.now = vi.fn(() => currentTime)
 
       const bucket = { tokens: 10, lastRefill: currentTime }
       await cache.setTokenBucket('bucket:key', bucket, 1)
@@ -246,7 +245,7 @@ describe('MemoryCache', () => {
     it('should return undefined for expired entries on get', async () => {
       const originalDateNow = Date.now
       let currentTime = originalDateNow()
-      Date.now = jest.fn(() => currentTime)
+      Date.now = vi.fn(() => currentTime)
 
       await cache.set('key1', 'value1', 30) // Expires in 30 seconds
       await cache.set('key2', 'value2', 90) // Expires in 90 seconds

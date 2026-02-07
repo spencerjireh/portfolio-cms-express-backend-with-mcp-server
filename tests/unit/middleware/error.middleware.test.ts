@@ -1,14 +1,14 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import { Request, Response, NextFunction } from 'express'
 
-// Mock request context
-const mockGetRequestContext = jest.fn(() => ({ requestId: 'test-request-id' }))
+const { mockGetRequestContext } = vi.hoisted(() => ({
+  mockGetRequestContext: vi.fn(() => ({ requestId: 'test-request-id' })),
+}))
 
-jest.unstable_mockModule('@/middleware/request-context.middleware', () => ({
+vi.mock('@/middleware/request-context.middleware', () => ({
   getRequestContext: mockGetRequestContext,
 }))
 
-jest.unstable_mockModule('@/config/env', () => ({
+vi.mock('@/config/env', () => ({
   env: {
     NODE_ENV: 'test',
   },
@@ -24,13 +24,13 @@ describe('errorHandlerMiddleware', () => {
 
   let mockReq: Partial<Request>
   let mockRes: Partial<Response>
-  let mockNext: jest.Mock<NextFunction>
-  let jsonMock: jest.Mock
-  let statusMock: jest.Mock
-  let setHeaderMock: jest.Mock
+  let mockNext: vi.Mock<NextFunction>
+  let jsonMock: vi.Mock
+  let statusMock: vi.Mock
+  let setHeaderMock: vi.Mock
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     mockGetRequestContext.mockReturnValue({ requestId: 'test-request-id' })
 
     // Dynamic imports to apply mocks
@@ -44,20 +44,20 @@ describe('errorHandlerMiddleware', () => {
     UnauthorizedError = errorsModule.UnauthorizedError
     RateLimitError = errorsModule.RateLimitError
 
-    jsonMock = jest.fn()
-    setHeaderMock = jest.fn()
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock })
+    jsonMock = vi.fn()
+    setHeaderMock = vi.fn()
+    statusMock = vi.fn().mockReturnValue({ json: jsonMock })
 
     mockReq = {}
     mockRes = {
       status: statusMock,
       setHeader: setHeaderMock,
     }
-    mockNext = jest.fn()
+    mockNext = vi.fn()
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   describe('AppError handling', () => {

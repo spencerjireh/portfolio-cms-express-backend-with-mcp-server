@@ -29,7 +29,6 @@ process.env.OTEL_ENABLED = 'false'
 delete process.env.REDIS_URL
 
 // Now import source modules (env is already set)
-import { beforeAll, afterAll, beforeEach } from '@jest/globals'
 import { startMockLLMServer, stopMockLLMServer, resetMockLLM } from './helpers/mock-llm-server'
 import { setApp, setDb, setLocalServerUrl, truncateAll } from './helpers/e2e-client'
 

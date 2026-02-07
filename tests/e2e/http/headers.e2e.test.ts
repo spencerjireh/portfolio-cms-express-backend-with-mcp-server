@@ -1,4 +1,3 @@
-import { describe, it, expect } from '@jest/globals'
 import { api, adminHeaders } from '../helpers/e2e-client'
 
 describe('Response headers (E2E)', () => {

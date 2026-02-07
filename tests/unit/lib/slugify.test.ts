@@ -1,4 +1,3 @@
-import { jest, describe, it, expect } from '@jest/globals'
 import { slugify, generateUniqueSlug } from '@/lib/slugify'
 
 describe('slugify', () => {
@@ -33,7 +32,7 @@ describe('slugify', () => {
 
 describe('generateUniqueSlug', () => {
   it('should return base slug if it does not exist', async () => {
-    const existsCheck = jest.fn().mockResolvedValue(false)
+    const existsCheck = vi.fn().mockResolvedValue(false)
 
     const result = await generateUniqueSlug('my-project', existsCheck)
 
@@ -42,7 +41,7 @@ describe('generateUniqueSlug', () => {
   })
 
   it('should sanitize the base slug', async () => {
-    const existsCheck = jest.fn().mockResolvedValue(false)
+    const existsCheck = vi.fn().mockResolvedValue(false)
 
     const result = await generateUniqueSlug('My Project!', existsCheck)
 
@@ -50,7 +49,7 @@ describe('generateUniqueSlug', () => {
   })
 
   it('should append -1 if base slug exists', async () => {
-    const existsCheck = jest
+    const existsCheck = vi
       .fn()
       .mockResolvedValueOnce(true) // my-project exists
       .mockResolvedValueOnce(false) // my-project-1 doesn't exist
@@ -62,7 +61,7 @@ describe('generateUniqueSlug', () => {
   })
 
   it('should increment suffix until unique', async () => {
-    const existsCheck = jest
+    const existsCheck = vi
       .fn()
       .mockResolvedValueOnce(true) // my-project exists
       .mockResolvedValueOnce(true) // my-project-1 exists
@@ -77,7 +76,7 @@ describe('generateUniqueSlug', () => {
 
   it('should append timestamp after 100 attempts', async () => {
     // Mock existsCheck to always return true for numbered suffixes
-    const existsCheck = jest.fn().mockResolvedValue(true)
+    const existsCheck = vi.fn().mockResolvedValue(true)
 
     const beforeTime = Date.now()
     const result = await generateUniqueSlug('my-project', existsCheck)
@@ -99,7 +98,7 @@ describe('generateUniqueSlug', () => {
   })
 
   it('should handle async exists check', async () => {
-    const existsCheck = jest.fn().mockImplementation(async (slug: string) => {
+    const existsCheck = vi.fn().mockImplementation(async (slug: string) => {
       await new Promise((resolve) => setTimeout(resolve, 1))
       return slug === 'async-project'
     })

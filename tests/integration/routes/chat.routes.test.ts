@@ -1,56 +1,49 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import request from 'supertest'
 import express, { type Express } from 'express'
 import { createChatSession } from '../../helpers/test-factories'
 
-// Mock repository
-const mockChatRepository = {
-  findActiveSession: jest.fn(),
-  createSession: jest.fn(),
-  addMessage: jest.fn(),
-  getMessages: jest.fn(),
-  findSession: jest.fn(),
-  getStats: jest.fn(),
-}
+const { mockChatRepository, mockEventEmitter, mockRateLimiter, mockLLMProvider, mockExecuteToolCall } = vi.hoisted(() => ({
+  mockChatRepository: {
+    findActiveSession: vi.fn(),
+    createSession: vi.fn(),
+    addMessage: vi.fn(),
+    getMessages: vi.fn(),
+    findSession: vi.fn(),
+    getStats: vi.fn(),
+  },
+  mockEventEmitter: {
+    emit: vi.fn(),
+  },
+  mockRateLimiter: {
+    consume: vi.fn(),
+    emitRateLimitEvent: vi.fn(),
+  },
+  mockLLMProvider: {
+    sendMessage: vi.fn(),
+  },
+  mockExecuteToolCall: vi.fn(),
+}))
 
-// Mock event emitter
-const mockEventEmitter = {
-  emit: jest.fn(),
-}
-
-// Mock rate limiter
-const mockRateLimiter = {
-  consume: jest.fn(),
-  emitRateLimitEvent: jest.fn(),
-}
-
-// Mock LLM provider
-const mockLLMProvider = {
-  sendMessage: jest.fn(),
-}
-
-jest.unstable_mockModule('@/repositories', () => ({
+vi.mock('@/repositories', () => ({
   chatRepository: mockChatRepository,
 }))
 
-jest.unstable_mockModule('@/events', () => ({
+vi.mock('@/events', () => ({
   eventEmitter: mockEventEmitter,
 }))
 
-jest.unstable_mockModule('@/resilience', () => ({
+vi.mock('@/resilience', () => ({
   rateLimiter: mockRateLimiter,
-  CircuitBreaker: jest.fn().mockImplementation(() => ({
-    execute: async (fn: () => Promise<unknown>) => fn(),
-  })),
+  CircuitBreaker: class MockCircuitBreaker {
+    async execute(fn: () => Promise<unknown>) { return fn() }
+  },
 }))
 
-jest.unstable_mockModule('@/llm', () => ({
+vi.mock('@/llm', () => ({
   getLLMProvider: () => mockLLMProvider,
 }))
 
-// Mock tool execution
-const mockExecuteToolCall = jest.fn()
-jest.unstable_mockModule('@/tools', () => ({
+vi.mock('@/tools', () => ({
   chatToolDefinitions: [],
   executeToolCall: mockExecuteToolCall,
 }))
@@ -59,7 +52,7 @@ describe('Chat Routes Integration', () => {
   let app: Express
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
 
     // Default rate limiter behavior
     mockRateLimiter.consume.mockResolvedValue({ allowed: true, remaining: 9 })
@@ -79,7 +72,7 @@ describe('Chat Routes Integration', () => {
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   describe('POST /api/v1/chat', () => {

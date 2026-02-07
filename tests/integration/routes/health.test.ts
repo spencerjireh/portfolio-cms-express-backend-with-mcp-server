@@ -1,17 +1,17 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import request from 'supertest'
 import express, { type Express } from 'express'
 
-// Mock the database client
-const mockExecute = jest.fn()
-jest.unstable_mockModule('@/db/client', () => ({
+const { mockExecute } = vi.hoisted(() => ({
+  mockExecute: vi.fn(),
+}))
+vi.mock('@/db/client', () => ({
   client: {
     execute: mockExecute,
   },
 }))
 
 // Mock env
-jest.unstable_mockModule('@/config/env', () => ({
+vi.mock('@/config/env', () => ({
   env: {
     NODE_ENV: 'test',
   },
@@ -21,7 +21,7 @@ describe('Health Routes', () => {
   let app: Express
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     mockExecute.mockResolvedValue({ rows: [{ '1': 1 }] })
 
     // Dynamic import to apply mocks
@@ -32,7 +32,7 @@ describe('Health Routes', () => {
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   describe('GET /health/live', () => {

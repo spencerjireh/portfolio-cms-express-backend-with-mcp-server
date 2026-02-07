@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals'
 import { createMcpTestClient, type McpTestContext } from './helpers/mcp-test-client'
 
 describe('MCP Resources (E2E)', () => {

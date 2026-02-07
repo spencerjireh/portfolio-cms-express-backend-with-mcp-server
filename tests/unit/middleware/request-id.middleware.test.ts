@@ -1,8 +1,4 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import { Request, Response, NextFunction } from 'express'
-
-// Store original crypto
-const originalCrypto = global.crypto
 
 // Mock crypto.randomUUID
 const mockUUID = '550e8400-e29b-41d4-a716-446655440000'
@@ -11,16 +7,16 @@ describe('requestIdMiddleware', () => {
   let requestIdMiddleware: typeof import('@/middleware/request-id.middleware').requestIdMiddleware
   let mockReq: Partial<Request>
   let mockRes: Partial<Response>
-  let mockNext: jest.Mock<NextFunction>
+  let mockNext: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     // Set up crypto mock before importing
-    global.crypto = {
-      ...originalCrypto,
-      randomUUID: jest.fn(() => mockUUID) as () => `${string}-${string}-${string}-${string}-${string}`,
-    }
+    vi.stubGlobal('crypto', {
+      ...globalThis.crypto,
+      randomUUID: vi.fn(() => mockUUID),
+    })
 
-    jest.resetModules()
+    vi.resetModules()
 
     // Dynamic import after setting up mocks
     const module = await import('@/middleware/request-id.middleware')
@@ -30,13 +26,13 @@ describe('requestIdMiddleware', () => {
       headers: {},
     }
     mockRes = {
-      setHeader: jest.fn(),
+      setHeader: vi.fn(),
     }
-    mockNext = jest.fn()
+    mockNext = vi.fn()
   })
 
   afterEach(() => {
-    global.crypto = originalCrypto
+    vi.unstubAllGlobals()
   })
 
   it('should use existing X-Request-Id from headers', () => {

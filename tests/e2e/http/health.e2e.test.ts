@@ -1,4 +1,3 @@
-import { describe, it, expect } from '@jest/globals'
 import { api } from '../helpers/e2e-client'
 
 describe('Health endpoints (E2E)', () => {

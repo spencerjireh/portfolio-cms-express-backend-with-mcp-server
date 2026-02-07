@@ -1,13 +1,13 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 
-// Mock content repository
-const mockContentRepository = {
-  findAll: jest.fn(),
-  findBySlug: jest.fn(),
-  findPublished: jest.fn(),
-}
+const { mockContentRepository } = vi.hoisted(() => ({
+  mockContentRepository: {
+    findAll: vi.fn(),
+    findBySlug: vi.fn(),
+    findPublished: vi.fn(),
+  },
+}))
 
-jest.unstable_mockModule('@/repositories/content.repository', () => ({
+vi.mock('@/repositories/content.repository', () => ({
   contentRepository: mockContentRepository,
 }))
 
@@ -15,13 +15,13 @@ describe('listContent', () => {
   let listContent: typeof import('@/tools/core/list-content').listContent
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     const module = await import('@/tools/core/list-content')
     listContent = module.listContent
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   it('should list content items by type', async () => {

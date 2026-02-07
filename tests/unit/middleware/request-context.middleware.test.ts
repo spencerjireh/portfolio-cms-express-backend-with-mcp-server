@@ -1,8 +1,4 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import { Request, Response, NextFunction } from 'express'
-
-// Store original crypto
-const originalCrypto = global.crypto
 
 // Mock crypto.randomUUID
 const mockUUID = '550e8400-e29b-41d4-a716-446655440000'
@@ -14,16 +10,16 @@ describe('requestContextMiddleware', () => {
 
   let mockReq: Partial<Request>
   let mockRes: Partial<Response>
-  let mockNext: jest.Mock<NextFunction>
+  let mockNext: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     // Set up crypto mock before importing
-    global.crypto = {
-      ...originalCrypto,
-      randomUUID: jest.fn(() => mockUUID) as () => `${string}-${string}-${string}-${string}-${string}`,
-    }
+    vi.stubGlobal('crypto', {
+      ...globalThis.crypto,
+      randomUUID: vi.fn(() => mockUUID),
+    })
 
-    jest.resetModules()
+    vi.resetModules()
 
     // Dynamic import after setting up mocks
     const module = await import('@/middleware/request-context.middleware')
@@ -35,63 +31,67 @@ describe('requestContextMiddleware', () => {
       headers: {},
     }
     mockRes = {}
-    mockNext = jest.fn()
+    mockNext = vi.fn()
   })
 
   afterEach(() => {
-    global.crypto = originalCrypto
+    vi.unstubAllGlobals()
   })
 
-  it('should create context with request ID from headers', (done) => {
-    const requestId = 'test-request-id'
-    mockReq.headers = { 'x-request-id': requestId }
+  it('should create context with request ID from headers', () =>
+    new Promise<void>((resolve) => {
+      const requestId = 'test-request-id'
+      mockReq.headers = { 'x-request-id': requestId }
 
-    mockNext = jest.fn(() => {
-      const context = getRequestContext()
-      expect(context).toBeDefined()
-      expect(context?.requestId).toBe(requestId)
-      done()
-    })
+      mockNext = vi.fn(() => {
+        const context = getRequestContext()
+        expect(context).toBeDefined()
+        expect(context?.requestId).toBe(requestId)
+        resolve()
+      })
 
-    const middleware = requestContextMiddleware()
-    middleware(mockReq as Request, mockRes as Response, mockNext)
-  })
+      const middleware = requestContextMiddleware()
+      middleware(mockReq as Request, mockRes as Response, mockNext)
+    }))
 
-  it('should generate request ID if none provided', (done) => {
-    mockNext = jest.fn(() => {
-      const context = getRequestContext()
-      expect(context?.requestId).toBe(mockUUID)
-      done()
-    })
+  it('should generate request ID if none provided', () =>
+    new Promise<void>((resolve) => {
+      mockNext = vi.fn(() => {
+        const context = getRequestContext()
+        expect(context?.requestId).toBe(mockUUID)
+        resolve()
+      })
 
-    const middleware = requestContextMiddleware()
-    middleware(mockReq as Request, mockRes as Response, mockNext)
-  })
+      const middleware = requestContextMiddleware()
+      middleware(mockReq as Request, mockRes as Response, mockNext)
+    }))
 
-  it('should set startTime in context', (done) => {
-    const beforeTime = Date.now()
+  it('should set startTime in context', () =>
+    new Promise<void>((resolve) => {
+      const beforeTime = Date.now()
 
-    mockNext = jest.fn(() => {
-      const context = getRequestContext()
-      const afterTime = Date.now()
-      expect(context?.startTime).toBeGreaterThanOrEqual(beforeTime)
-      expect(context?.startTime).toBeLessThanOrEqual(afterTime)
-      done()
-    })
+      mockNext = vi.fn(() => {
+        const context = getRequestContext()
+        const afterTime = Date.now()
+        expect(context?.startTime).toBeGreaterThanOrEqual(beforeTime)
+        expect(context?.startTime).toBeLessThanOrEqual(afterTime)
+        resolve()
+      })
 
-    const middleware = requestContextMiddleware()
-    middleware(mockReq as Request, mockRes as Response, mockNext)
-  })
+      const middleware = requestContextMiddleware()
+      middleware(mockReq as Request, mockRes as Response, mockNext)
+    }))
 
-  it('should call next within context', (done) => {
-    mockNext = jest.fn(() => {
-      expect(mockNext).toHaveBeenCalled()
-      done()
-    })
+  it('should call next within context', () =>
+    new Promise<void>((resolve) => {
+      mockNext = vi.fn(() => {
+        expect(mockNext).toHaveBeenCalled()
+        resolve()
+      })
 
-    const middleware = requestContextMiddleware()
-    middleware(mockReq as Request, mockRes as Response, mockNext)
-  })
+      const middleware = requestContextMiddleware()
+      middleware(mockReq as Request, mockRes as Response, mockNext)
+    }))
 })
 
 describe('getRequestContext', () => {
@@ -99,7 +99,7 @@ describe('getRequestContext', () => {
   let requestContext: typeof import('@/middleware/request-context.middleware').requestContext
 
   beforeEach(async () => {
-    jest.resetModules()
+    vi.resetModules()
     const module = await import('@/middleware/request-context.middleware')
     getRequestContext = module.getRequestContext
     requestContext = module.requestContext
@@ -110,16 +110,17 @@ describe('getRequestContext', () => {
     expect(context).toBeUndefined()
   })
 
-  it('should return context when running inside context', (done) => {
-    const testContext = {
-      requestId: 'test-id',
-      startTime: Date.now(),
-    }
+  it('should return context when running inside context', () =>
+    new Promise<void>((resolve) => {
+      const testContext = {
+        requestId: 'test-id',
+        startTime: Date.now(),
+      }
 
-    requestContext.run(testContext, () => {
-      const context = getRequestContext()
-      expect(context).toEqual(testContext)
-      done()
-    })
-  })
+      requestContext.run(testContext, () => {
+        const context = getRequestContext()
+        expect(context).toEqual(testContext)
+        resolve()
+      })
+    }))
 })

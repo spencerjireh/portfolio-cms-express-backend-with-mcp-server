@@ -1,4 +1,3 @@
-import { describe, it, expect } from '@jest/globals'
 import { sanitizeSlug, escapeHtml, isValidUrl } from '@/lib/sanitize'
 
 describe('sanitizeSlug', () => {

@@ -1,72 +1,65 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import type { ChatSession, ChatMessage } from '@/db/models'
 
-// Mock repository
-const mockChatRepository = {
-  findActiveSession: jest.fn(),
-  createSession: jest.fn(),
-  findSession: jest.fn(),
-  addMessage: jest.fn(),
-  getMessages: jest.fn(),
-  endSession: jest.fn(),
-  getStats: jest.fn(),
-}
+const { mockChatRepository, mockEventEmitter, mockRateLimiter, mockLLMProvider, mockExecuteToolCall, mockLogger } = vi.hoisted(() => {
+  const mockLogger: Record<string, any> = {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    trace: vi.fn(),
+    fatal: vi.fn(),
+  }
+  mockLogger.child = vi.fn(() => mockLogger)
+  return {
+    mockChatRepository: {
+      findActiveSession: vi.fn(),
+      createSession: vi.fn(),
+      findSession: vi.fn(),
+      addMessage: vi.fn(),
+      getMessages: vi.fn(),
+      endSession: vi.fn(),
+      getStats: vi.fn(),
+    },
+    mockEventEmitter: {
+      emit: vi.fn(),
+    },
+    mockRateLimiter: {
+      consume: vi.fn(),
+      emitRateLimitEvent: vi.fn(),
+    },
+    mockLLMProvider: {
+      sendMessage: vi.fn(),
+    },
+    mockExecuteToolCall: vi.fn(),
+    mockLogger,
+  }
+})
 
-// Mock event emitter
-const mockEventEmitter = {
-  emit: jest.fn(),
-}
-
-// Mock rate limiter
-const mockRateLimiter = {
-  consume: jest.fn(),
-  emitRateLimitEvent: jest.fn(),
-}
-
-// Mock LLM provider
-const mockLLMProvider = {
-  sendMessage: jest.fn(),
-}
-
-// Mock execute tool call
-const mockExecuteToolCall = jest.fn()
-
-// Mock logger
-const mockLogger = {
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-  debug: jest.fn(),
-  trace: jest.fn(),
-  fatal: jest.fn(),
-  child: jest.fn(() => mockLogger),
-}
-
-jest.unstable_mockModule('@/repositories', () => ({
+vi.mock('@/repositories', () => ({
   chatRepository: mockChatRepository,
 }))
 
-jest.unstable_mockModule('@/events', () => ({
+vi.mock('@/events', () => ({
   eventEmitter: mockEventEmitter,
 }))
 
-jest.unstable_mockModule('@/resilience', () => ({
+vi.mock('@/resilience', () => ({
   rateLimiter: mockRateLimiter,
-  CircuitBreaker: jest.fn().mockImplementation(() => ({
-    execute: async (fn: () => Promise<unknown>) => fn(),
-  })),
+  CircuitBreaker: class MockCircuitBreaker {
+    async execute(fn: () => Promise<unknown>) { return fn() }
+  },
 }))
 
-jest.unstable_mockModule('@/llm', () => ({
+vi.mock('@/llm', () => ({
   getLLMProvider: () => mockLLMProvider,
 }))
 
-jest.unstable_mockModule('@/tools', () => ({
+vi.mock('@/tools', () => ({
   chatToolDefinitions: [],
   executeToolCall: mockExecuteToolCall,
 }))
 
-jest.unstable_mockModule('@/lib/logger', () => ({
+vi.mock('@/lib/logger', () => ({
   logger: mockLogger,
 }))
 
@@ -74,7 +67,7 @@ describe('ChatService', () => {
   let chatService: typeof import('@/services/chat.service').chatService
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
 
     // Default mock implementations
     mockRateLimiter.consume.mockResolvedValue({ allowed: true, remaining: 5 })
@@ -90,7 +83,7 @@ describe('ChatService', () => {
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   // Test data factories
@@ -282,7 +275,7 @@ describe('ChatService', () => {
   })
 
   // Note: listSessions tests are skipped because the method uses dynamic imports
-  // for db and schema which are difficult to mock with jest.unstable_mockModule.
+  // for db and schema which are difficult to mock with vi.mock.
   // This would be better tested as an integration test.
 
   describe('getSession', () => {

@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach } from '@jest/globals'
 import { api, adminHeaders, truncateAll } from '../helpers/e2e-client'
 
 describe('Public content API (E2E)', () => {

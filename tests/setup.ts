@@ -1,9 +1,8 @@
 /**
- * Jest global setup file.
+ * Vitest global setup file.
  * Runs before all tests.
  */
 
-import { jest, beforeEach, afterEach } from '@jest/globals'
 import { setupTestEnv } from './helpers/mock-env'
 import { resetIdCounter } from './helpers/test-factories'
 import { resetMockCache } from './helpers/mock-cache'
@@ -13,40 +12,40 @@ import { resetMockLLM } from './helpers/mock-llm'
 setupTestEnv()
 
 // Suppress pino logging during tests
-jest.mock('@/lib/logger', () => ({
+vi.mock('@/lib/logger', () => ({
   logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    child: jest.fn().mockReturnThis(),
-    trace: jest.fn(),
-    fatal: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+    trace: vi.fn(),
+    fatal: vi.fn(),
   },
-  httpLogger: jest.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  httpLogger: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
 }))
 
 // Mock the observability metrics to avoid Prometheus registration issues
-jest.mock('@/observability/metrics', () => ({
-  httpRequestsTotal: { inc: jest.fn() },
-  httpRequestDuration: { observe: jest.fn(), startTimer: jest.fn(() => jest.fn()) },
-  chatMessagesTotal: { inc: jest.fn() },
-  chatTokensTotal: { inc: jest.fn() },
-  chatActiveSessionsGauge: { set: jest.fn() },
-  llmRequestsTotal: { inc: jest.fn() },
-  llmRequestDuration: { observe: jest.fn() },
-  circuitBreakerState: { set: jest.fn() },
-  rateLimitHitsTotal: { inc: jest.fn() },
-  cacheOperationsTotal: { inc: jest.fn() },
+vi.mock('@/observability/metrics', () => ({
+  httpRequestsTotal: { inc: vi.fn() },
+  httpRequestDuration: { observe: vi.fn(), startTimer: vi.fn(() => vi.fn()) },
+  chatMessagesTotal: { inc: vi.fn() },
+  chatTokensTotal: { inc: vi.fn() },
+  chatActiveSessionsGauge: { set: vi.fn() },
+  llmRequestsTotal: { inc: vi.fn() },
+  llmRequestDuration: { observe: vi.fn() },
+  circuitBreakerState: { set: vi.fn() },
+  rateLimitHitsTotal: { inc: vi.fn() },
+  cacheOperationsTotal: { inc: vi.fn() },
   register: {
-    metrics: jest.fn().mockResolvedValue(''),
+    metrics: vi.fn().mockResolvedValue(''),
     contentType: 'text/plain',
   },
 }))
 
 // Mock the metrics middleware
-jest.mock('@/observability/metrics.middleware', () => ({
-  metricsMiddleware: jest.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+vi.mock('@/observability/metrics.middleware', () => ({
+  metricsMiddleware: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
 }))
 
 // Global beforeEach hook
@@ -58,7 +57,7 @@ beforeEach(() => {
   // Reset mock LLM
   resetMockLLM()
   // Clear all mocks
-  jest.clearAllMocks()
+  vi.clearAllMocks()
 })
 
 // Global afterEach hook

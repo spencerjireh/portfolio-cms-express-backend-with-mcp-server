@@ -1,43 +1,40 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import request from 'supertest'
 import express, { type Express } from 'express'
 import { createContent, createProject, createContentHistory } from '../../helpers/test-factories'
 
-// Mock repository
-const mockContentRepository = {
-  findAll: jest.fn(),
-  findById: jest.fn(),
-  findByIdIncludingDeleted: jest.fn(),
-  slugExists: jest.fn(),
-  create: jest.fn(),
-  updateWithHistory: jest.fn(),
-  delete: jest.fn(),
-  hardDelete: jest.fn(),
-  getHistory: jest.fn(),
-  restoreVersion: jest.fn(),
-}
+const { mockContentRepository, mockEventEmitter, mockCache, TEST_ADMIN_KEY } = vi.hoisted(() => ({
+  mockContentRepository: {
+    findAll: vi.fn(),
+    findById: vi.fn(),
+    findByIdIncludingDeleted: vi.fn(),
+    slugExists: vi.fn(),
+    create: vi.fn(),
+    updateWithHistory: vi.fn(),
+    delete: vi.fn(),
+    hardDelete: vi.fn(),
+    getHistory: vi.fn(),
+    restoreVersion: vi.fn(),
+  },
+  mockEventEmitter: {
+    emit: vi.fn(),
+  },
+  mockCache: {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(true),
+  },
+  TEST_ADMIN_KEY: 'test-admin-api-key-that-is-at-least-32-chars',
+}))
 
-// Mock event emitter
-const mockEventEmitter = {
-  emit: jest.fn(),
-}
-
-// Mock cache
-const mockCache = {
-  get: jest.fn().mockResolvedValue(null),
-  set: jest.fn().mockResolvedValue(undefined),
-  delete: jest.fn().mockResolvedValue(true),
-}
-
-jest.unstable_mockModule('@/repositories', () => ({
+vi.mock('@/repositories', () => ({
   contentRepository: mockContentRepository,
 }))
 
-jest.unstable_mockModule('@/events', () => ({
+vi.mock('@/events', () => ({
   eventEmitter: mockEventEmitter,
 }))
 
-jest.unstable_mockModule('@/cache', () => ({
+vi.mock('@/cache', () => ({
   getCache: () => mockCache,
   CacheKeys: {
     IDEMPOTENCY: (key: string) => `idempotency:${key}`,
@@ -53,10 +50,7 @@ jest.unstable_mockModule('@/cache', () => ({
   },
 }))
 
-// Mock env with test admin key
-const TEST_ADMIN_KEY = 'test-admin-api-key-that-is-at-least-32-chars'
-
-jest.unstable_mockModule('@/config/env', () => ({
+vi.mock('@/config/env', () => ({
   env: {
     NODE_ENV: 'test',
     ADMIN_API_KEY: TEST_ADMIN_KEY,
@@ -67,7 +61,7 @@ describe('Admin Content Routes Integration', () => {
   let app: Express
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     // Reset mock cache methods after clearAllMocks
     mockCache.get.mockResolvedValue(null)
     mockCache.set.mockResolvedValue(undefined)
@@ -88,7 +82,7 @@ describe('Admin Content Routes Integration', () => {
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   describe('Authentication', () => {

@@ -1,13 +1,13 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 
-// Mock content repository
-const mockContentRepository = {
-  findAll: jest.fn(),
-  findBySlug: jest.fn(),
-  findPublished: jest.fn(),
-}
+const { mockContentRepository } = vi.hoisted(() => ({
+  mockContentRepository: {
+    findAll: vi.fn(),
+    findBySlug: vi.fn(),
+    findPublished: vi.fn(),
+  },
+}))
 
-jest.unstable_mockModule('@/repositories/content.repository', () => ({
+vi.mock('@/repositories/content.repository', () => ({
   contentRepository: mockContentRepository,
 }))
 
@@ -15,13 +15,13 @@ describe('searchContent', () => {
   let searchContent: typeof import('@/tools/core/search-content').searchContent
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     const module = await import('@/tools/core/search-content')
     searchContent = module.searchContent
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   it('should search content by query in title', async () => {
@@ -32,6 +32,10 @@ describe('searchContent', () => {
         type: 'project',
         data: { title: 'React Dashboard', description: 'A dashboard built with React' },
         status: 'published',
+        version: 1,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
       },
       {
         id: 'cnt_2',
@@ -39,6 +43,10 @@ describe('searchContent', () => {
         type: 'project',
         data: { title: 'Vue App', description: 'An app built with Vue' },
         status: 'published',
+        version: 1,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
       },
     ]
 
@@ -62,6 +70,10 @@ describe('searchContent', () => {
         type: 'project',
         data: { title: 'Project 1', description: 'Uses TypeScript extensively' },
         status: 'published',
+        version: 1,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
       },
     ]
 
@@ -84,6 +96,10 @@ describe('searchContent', () => {
         type: 'project',
         data: { title: 'Project 1', tags: ['nodejs', 'express', 'mongodb'] },
         status: 'published',
+        version: 1,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
       },
     ]
 
@@ -111,6 +127,10 @@ describe('searchContent', () => {
           ],
         },
         status: 'published',
+        version: 1,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
       },
     ]
 
@@ -146,6 +166,10 @@ describe('searchContent', () => {
         type: 'project',
         data: { title: `Project ${i}`, description: 'Test project' },
         status: 'published',
+        version: 1,
+        sortOrder: i,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
       }))
 
     mockContentRepository.findPublished.mockResolvedValue(mockItems)
@@ -167,6 +191,10 @@ describe('searchContent', () => {
         type: 'project',
         data: { title: 'Project 1' },
         status: 'published',
+        version: 1,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
       },
     ]
 
@@ -189,6 +217,10 @@ describe('searchContent', () => {
         type: 'project',
         data: { title: 'UPPERCASE TITLE' },
         status: 'published',
+        version: 1,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
       },
     ]
 

@@ -1,11 +1,10 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import { LLMError } from '@/errors/app.error'
 
-// Create mock event emitter
-const mockEmit = jest.fn()
+const { mockEmit } = vi.hoisted(() => ({
+  mockEmit: vi.fn(),
+}))
 
-// Mock the events module before importing CircuitBreaker
-jest.unstable_mockModule('@/events', () => ({
+vi.mock('@/events', () => ({
   eventEmitter: {
     emit: mockEmit,
   },
@@ -95,7 +94,7 @@ describe('CircuitBreaker', () => {
     })
 
     it('should throw LLMError immediately without executing function', async () => {
-      const fn = jest.fn()
+      const fn = vi.fn()
 
       await expect(breaker.execute(fn as () => Promise<unknown>)).rejects.toBeInstanceOf(LLMError)
       expect(fn).not.toHaveBeenCalled()
@@ -115,17 +114,17 @@ describe('CircuitBreaker', () => {
 
     it('should transition to half-open after timeout', async () => {
       // Fast-forward time
-      jest.useFakeTimers()
-      jest.advanceTimersByTime(1001)
+      vi.useFakeTimers()
+      vi.advanceTimersByTime(1001)
 
       // Next call should transition to half-open
-      const fn = jest.fn<() => Promise<string>>().mockResolvedValue('success')
+      const fn = vi.fn<() => Promise<string>>().mockResolvedValue('success')
       await breaker.execute(fn)
 
       expect(breaker.getState()).toBe('half_open')
       expect(fn).toHaveBeenCalled()
 
-      jest.useRealTimers()
+      vi.useRealTimers()
     })
   })
 
@@ -137,15 +136,15 @@ describe('CircuitBreaker', () => {
       }
 
       // Wait for timeout and trigger half-open
-      jest.useFakeTimers()
-      jest.advanceTimersByTime(1001)
+      vi.useFakeTimers()
+      vi.advanceTimersByTime(1001)
       await breaker.execute(async () => 'success')
       expect(breaker.getState()).toBe('half_open')
       mockEmit.mockClear()
     })
 
     afterEach(() => {
-      jest.useRealTimers()
+      vi.useRealTimers()
     })
 
     it('should return to closed after success threshold', async () => {

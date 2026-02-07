@@ -1,22 +1,22 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 
-// Mock core tool functions
-const mockListContent = jest.fn()
-const mockGetContent = jest.fn()
-const mockSearchContent = jest.fn()
+const { mockListContent, mockGetContent, mockSearchContent } = vi.hoisted(() => ({
+  mockListContent: vi.fn(),
+  mockGetContent: vi.fn(),
+  mockSearchContent: vi.fn(),
+}))
 
-jest.unstable_mockModule('@/tools/core', () => ({
+vi.mock('@/tools/core', () => ({
   listContent: mockListContent,
   getContent: mockGetContent,
   searchContent: mockSearchContent,
 }))
 
 // Mock content repository (needed by core modules)
-jest.unstable_mockModule('@/repositories/content.repository', () => ({
+vi.mock('@/repositories/content.repository', () => ({
   contentRepository: {
-    findAll: jest.fn(),
-    findBySlug: jest.fn(),
-    findPublished: jest.fn(),
+    findAll: vi.fn(),
+    findBySlug: vi.fn(),
+    findPublished: vi.fn(),
   },
 }))
 
@@ -25,14 +25,14 @@ describe('OpenAI Adapter', () => {
   let chatToolDefinitions: typeof import('@/tools/openai-adapter').chatToolDefinitions
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     const module = await import('@/tools/openai-adapter')
     executeToolCall = module.executeToolCall
     chatToolDefinitions = module.chatToolDefinitions
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   describe('chatToolDefinitions', () => {

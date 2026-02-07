@@ -1,33 +1,31 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import type { ContentWithData, ContentBundle, ContentHistory } from '@/db/models'
 
-// Mock repository
-const mockContentRepository = {
-  findPublished: jest.fn(),
-  findBySlug: jest.fn(),
-  getBundle: jest.fn(),
-  findAll: jest.fn(),
-  findById: jest.fn(),
-  findByIdIncludingDeleted: jest.fn(),
-  slugExists: jest.fn(),
-  create: jest.fn(),
-  updateWithHistory: jest.fn(),
-  delete: jest.fn(),
-  hardDelete: jest.fn(),
-  getHistory: jest.fn(),
-  restoreVersion: jest.fn(),
-}
+const { mockContentRepository, mockEventEmitter } = vi.hoisted(() => ({
+  mockContentRepository: {
+    findPublished: vi.fn(),
+    findBySlug: vi.fn(),
+    getBundle: vi.fn(),
+    findAll: vi.fn(),
+    findById: vi.fn(),
+    findByIdIncludingDeleted: vi.fn(),
+    slugExists: vi.fn(),
+    create: vi.fn(),
+    updateWithHistory: vi.fn(),
+    delete: vi.fn(),
+    hardDelete: vi.fn(),
+    getHistory: vi.fn(),
+    restoreVersion: vi.fn(),
+  },
+  mockEventEmitter: {
+    emit: vi.fn(),
+  },
+}))
 
-// Mock event emitter
-const mockEventEmitter = {
-  emit: jest.fn(),
-}
-
-jest.unstable_mockModule('@/repositories', () => ({
+vi.mock('@/repositories', () => ({
   contentRepository: mockContentRepository,
 }))
 
-jest.unstable_mockModule('@/events', () => ({
+vi.mock('@/events', () => ({
   eventEmitter: mockEventEmitter,
 }))
 
@@ -35,7 +33,7 @@ describe('ContentService', () => {
   let contentService: typeof import('@/services/content.service').contentService
 
   beforeEach(async () => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
 
     // Dynamic import to apply mocks
     const module = await import('@/services/content.service')
@@ -43,7 +41,7 @@ describe('ContentService', () => {
   })
 
   afterEach(() => {
-    jest.resetModules()
+    vi.resetModules()
   })
 
   // Test data factories

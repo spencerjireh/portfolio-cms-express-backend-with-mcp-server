@@ -1,4 +1,3 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 import { isRetryableError, withRetry } from '@/llm/retry'
 import { LLMError } from '@/errors/app.error'
 
@@ -112,15 +111,15 @@ describe('isRetryableError', () => {
 
 describe('withRetry', () => {
   beforeEach(() => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
   })
 
   afterEach(() => {
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   it('should return result on first success', async () => {
-    const fn = jest.fn().mockResolvedValue('success')
+    const fn = vi.fn().mockResolvedValue('success')
 
     const result = await withRetry(fn)
 
@@ -129,14 +128,14 @@ describe('withRetry', () => {
   })
 
   it('should retry on retryable error', async () => {
-    const fn = jest.fn()
+    const fn = vi.fn()
       .mockRejectedValueOnce(new LLMError('HTTP 500 error', 'openai'))
       .mockResolvedValueOnce('success')
 
     const resultPromise = withRetry(fn, { maxRetries: 3, initialDelayMs: 100 })
 
     // Fast forward through the delay
-    await jest.advanceTimersByTimeAsync(150)
+    await vi.advanceTimersByTimeAsync(150)
 
     const result = await resultPromise
 
@@ -145,7 +144,7 @@ describe('withRetry', () => {
   })
 
   it('should not retry on non-retryable error', async () => {
-    const fn = jest.fn()
+    const fn = vi.fn()
       .mockRejectedValueOnce(new LLMError('HTTP 400 Bad Request', 'openai'))
 
     await expect(withRetry(fn)).rejects.toThrow('HTTP 400 Bad Request')
@@ -153,9 +152,9 @@ describe('withRetry', () => {
   })
 
   it('should throw after max retries', async () => {
-    jest.useRealTimers() // Use real timers for this test
+    vi.useRealTimers() // Use real timers for this test
 
-    const fn = jest.fn()
+    const fn = vi.fn()
       .mockRejectedValue(new LLMError('HTTP 500 error', 'openai'))
 
     await expect(
@@ -166,7 +165,7 @@ describe('withRetry', () => {
   })
 
   it('should use default options', async () => {
-    const fn = jest.fn().mockResolvedValue('result')
+    const fn = vi.fn().mockResolvedValue('result')
 
     const result = await withRetry(fn)
 
@@ -174,7 +173,7 @@ describe('withRetry', () => {
   })
 
   it('should apply exponential backoff', async () => {
-    const fn = jest.fn()
+    const fn = vi.fn()
       .mockRejectedValueOnce(new LLMError('HTTP 503', 'openai'))
       .mockRejectedValueOnce(new LLMError('HTTP 503', 'openai'))
       .mockResolvedValueOnce('success')
@@ -187,9 +186,9 @@ describe('withRetry', () => {
     })
 
     // First retry: ~100-125ms
-    await jest.advanceTimersByTimeAsync(150)
+    await vi.advanceTimersByTimeAsync(150)
     // Second retry: ~200-250ms
-    await jest.advanceTimersByTimeAsync(300)
+    await vi.advanceTimersByTimeAsync(300)
 
     const result = await resultPromise
     expect(result).toBe('success')
@@ -197,7 +196,7 @@ describe('withRetry', () => {
   })
 
   it('should cap delay at maxDelayMs', async () => {
-    const fn = jest.fn()
+    const fn = vi.fn()
       .mockRejectedValueOnce(new LLMError('HTTP 503', 'openai'))
       .mockRejectedValueOnce(new LLMError('HTTP 503', 'openai'))
       .mockRejectedValueOnce(new LLMError('HTTP 503', 'openai'))
@@ -211,9 +210,9 @@ describe('withRetry', () => {
     })
 
     // Delays should be capped at 100ms (plus jitter)
-    await jest.advanceTimersByTimeAsync(150)
-    await jest.advanceTimersByTimeAsync(150)
-    await jest.advanceTimersByTimeAsync(150)
+    await vi.advanceTimersByTimeAsync(150)
+    await vi.advanceTimersByTimeAsync(150)
+    await vi.advanceTimersByTimeAsync(150)
 
     const result = await resultPromise
     expect(result).toBe('success')

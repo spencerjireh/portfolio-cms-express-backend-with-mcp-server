@@ -1,37 +1,44 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import { createMockCache, type MockCacheProvider } from '../../helpers'
 
 // We need to test RateLimiter with a mock cache
 // The approach is to test the class directly by mocking the imported getCache
 
+// Stable references for vi.mock factories (hoisted to top)
+const { mockCacheRef, mockEventEmitterRef } = vi.hoisted(() => ({
+  mockCacheRef: { current: null as MockCacheProvider | null },
+  mockEventEmitterRef: { current: null as { emit: ReturnType<typeof vi.fn> } | null },
+}))
+
+vi.mock('@/cache', () => ({
+  getCache: () => mockCacheRef.current,
+  CacheKeys: {
+    TOKEN_BUCKET: 'tokenbucket',
+  },
+}))
+
+vi.mock('@/events', () => ({
+  eventEmitter: mockEventEmitterRef.current,
+}))
+
 describe('RateLimiter', () => {
   let mockCache: MockCacheProvider
-  let mockEventEmitter: { emit: jest.Mock }
+  let mockEventEmitter: { emit: ReturnType<typeof vi.fn> }
 
   beforeEach(() => {
     mockCache = createMockCache()
-    mockEventEmitter = { emit: jest.fn() }
+    mockEventEmitter = { emit: vi.fn() }
+    // Update stable references so vi.mock factories return current mocks
+    mockCacheRef.current = mockCache
+    mockEventEmitterRef.current = mockEventEmitter
   })
 
   afterEach(() => {
     mockCache.clear()
+    vi.resetModules()
   })
 
   // Helper to create a rate limiter with mocked dependencies
   async function createRateLimiterWithMocks(capacity = 5, refillRate = 1, ttl = 300) {
-    // Dynamic import to allow mocking
-    jest.unstable_mockModule('@/cache', () => ({
-      getCache: () => mockCache,
-      CacheKeys: {
-        TOKEN_BUCKET: 'tokenbucket',
-      },
-    }))
-
-    jest.unstable_mockModule('@/events', () => ({
-      eventEmitter: mockEventEmitter,
-    }))
-
-    // Clear the module cache to apply mocks
     const { RateLimiter } = await import('@/resilience/rate.limiter')
     return new RateLimiter(capacity, refillRate, ttl)
   }
@@ -274,7 +281,7 @@ describe('RateLimiter', () => {
     it('should fail open when cache throws', async () => {
       // Make getTokenBucket throw an error
       const originalGetTokenBucket = mockCache.getTokenBucket.bind(mockCache)
-      mockCache.getTokenBucket = jest.fn(() => {
+      mockCache.getTokenBucket = vi.fn(() => {
         throw new Error('Redis connection lost')
       }) as typeof mockCache.getTokenBucket
 
