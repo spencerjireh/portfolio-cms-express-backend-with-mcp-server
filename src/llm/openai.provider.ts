@@ -4,7 +4,6 @@ import { llmRequestsTotal, llmRequestDuration } from '@/observability'
 import { withRetry } from './retry'
 import type { LLMProvider, LLMMessage, LLMOptions, LLMResponse, ToolCall } from './types'
 
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
 
 interface OpenAIToolCall {
   id: string
@@ -79,6 +78,7 @@ interface OpenAIErrorResponse {
  */
 export class OpenAIProvider implements LLMProvider {
   private readonly apiKey: string
+  private readonly apiUrl: string
   private readonly defaultModel: string
   private readonly defaultMaxTokens: number
   private readonly defaultTemperature: number
@@ -87,6 +87,9 @@ export class OpenAIProvider implements LLMProvider {
 
   constructor() {
     this.apiKey = env.LLM_API_KEY
+    this.apiUrl = env.LLM_BASE_URL
+      ? `${env.LLM_BASE_URL}/chat/completions`
+      : 'https://api.openai.com/v1/chat/completions'
     this.defaultModel = env.LLM_MODEL
     this.defaultMaxTokens = env.LLM_MAX_TOKENS
     this.defaultTemperature = env.LLM_TEMPERATURE
@@ -151,7 +154,7 @@ export class OpenAIProvider implements LLMProvider {
       let response: Response
 
       try {
-        response = await fetch(OPENAI_API_URL, {
+        response = await fetch(this.apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

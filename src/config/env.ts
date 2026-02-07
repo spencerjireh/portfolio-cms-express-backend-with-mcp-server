@@ -9,6 +9,7 @@ const envSchema = z.object({
   ADMIN_API_KEY: z.string().min(32),
   LLM_PROVIDER: z.enum(['openai']).default('openai'),
   LLM_API_KEY: z.string().min(1),
+  LLM_BASE_URL: z.string().url().optional(),
   LLM_MODEL: z.string().default('gpt-4o-mini'),
   LLM_MAX_TOKENS: z.coerce.number().default(1000),
   LLM_TEMPERATURE: z.coerce.number().default(0.7),
