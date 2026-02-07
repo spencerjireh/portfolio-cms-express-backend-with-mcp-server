@@ -4,6 +4,7 @@ import { env } from '@/config/env'
 import { logger } from '@/lib/logger'
 import { db, client } from '@/db/client'
 import { createCache, closeCache } from '@/cache'
+import { closeMcpSessions } from '@/mcp/http'
 import { registerCacheHandlers } from '@/events/handlers/cache.handlers'
 import { registerAuditHandlers } from '@/events/handlers/audit.handlers'
 import { registerMetricsHandlers } from '@/events/handlers/metrics.handlers'
@@ -58,6 +59,7 @@ async function start() {
       if (isCleanedUp) return
       isCleanedUp = true
       logger.info('Server closed')
+      closeMcpSessions()
       await closeCache()
       client.close()
       logger.info('Database connection closed')
@@ -68,6 +70,7 @@ async function start() {
       if (isCleanedUp) return
       isCleanedUp = true
       logger.error('Forced shutdown after timeout')
+      closeMcpSessions()
       await closeCache()
       client.close()
       process.exit(1)

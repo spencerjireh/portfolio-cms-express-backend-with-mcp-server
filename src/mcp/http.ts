@@ -7,7 +7,34 @@ import { registerTools } from './tools'
 import { registerResources } from './resources'
 import { registerPrompts } from './prompts'
 
-const transports = new Map<string, StreamableHTTPServerTransport>()
+const SESSION_TTL_MS = 30 * 60 * 1000 // 30 minutes
+const REAP_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
+
+interface SessionEntry {
+  transport: StreamableHTTPServerTransport
+  lastAccessed: number
+}
+
+const sessions = new Map<string, SessionEntry>()
+
+// Reaper interval to evict stale sessions
+const reaper = setInterval(() => {
+  const now = Date.now()
+  for (const [sessionId, entry] of sessions) {
+    if (now - entry.lastAccessed > SESSION_TTL_MS) {
+      entry.transport.close()
+      sessions.delete(sessionId)
+    }
+  }
+}, REAP_INTERVAL_MS)
+reaper.unref()
+
+function touchSession(sessionId: string) {
+  const entry = sessions.get(sessionId)
+  if (entry) {
+    entry.lastAccessed = Date.now()
+  }
+}
 
 function createMcpSession(): {
   server: McpServer
@@ -25,18 +52,25 @@ function createMcpSession(): {
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (sessionId: string) => {
-      transports.set(sessionId, transport)
+      sessions.set(sessionId, { transport, lastAccessed: Date.now() })
     },
   })
 
   transport.onclose = () => {
     const sid = transport.sessionId
     if (sid) {
-      transports.delete(sid)
+      sessions.delete(sid)
     }
   }
 
   return { server, transport }
+}
+
+export function closeMcpSessions() {
+  for (const [sessionId, entry] of sessions) {
+    entry.transport.close()
+    sessions.delete(sessionId)
+  }
 }
 
 export const mcpRouter = Router()
@@ -46,8 +80,9 @@ mcpRouter.post('/', async (req: Request, res: Response) => {
   const sessionId = req.headers['mcp-session-id'] as string | undefined
 
   try {
-    if (sessionId && transports.has(sessionId)) {
-      const transport = transports.get(sessionId)!
+    if (sessionId && sessions.has(sessionId)) {
+      touchSession(sessionId)
+      const { transport } = sessions.get(sessionId)!
       await transport.handleRequest(req, res, req.body)
       return
     }
@@ -82,7 +117,7 @@ mcpRouter.post('/', async (req: Request, res: Response) => {
 mcpRouter.get('/', async (req: Request, res: Response) => {
   const sessionId = req.headers['mcp-session-id'] as string | undefined
 
-  if (!sessionId || !transports.has(sessionId)) {
+  if (!sessionId || !sessions.has(sessionId)) {
     res.status(400).json({
       jsonrpc: '2.0',
       error: {
@@ -94,7 +129,8 @@ mcpRouter.get('/', async (req: Request, res: Response) => {
     return
   }
 
-  const transport = transports.get(sessionId)!
+  touchSession(sessionId)
+  const { transport } = sessions.get(sessionId)!
   await transport.handleRequest(req, res)
 })
 
@@ -102,7 +138,7 @@ mcpRouter.get('/', async (req: Request, res: Response) => {
 mcpRouter.delete('/', async (req: Request, res: Response) => {
   const sessionId = req.headers['mcp-session-id'] as string | undefined
 
-  if (!sessionId || !transports.has(sessionId)) {
+  if (!sessionId || !sessions.has(sessionId)) {
     res.status(400).json({
       jsonrpc: '2.0',
       error: {
@@ -114,6 +150,7 @@ mcpRouter.delete('/', async (req: Request, res: Response) => {
     return
   }
 
-  const transport = transports.get(sessionId)!
+  touchSession(sessionId)
+  const { transport } = sessions.get(sessionId)!
   await transport.handleRequest(req, res)
 })

@@ -9,10 +9,16 @@ export function registerCompareSkills(server: McpServer) {
     'Compare portfolio skills against job requirements',
     CompareSkillsPromptArgsShape,
     async (args) => {
-      // Parse comma-separated strings into arrays
-      const requiredSkills = args.requiredSkills.split(',').map((s: string) => s.trim())
+      // Parse comma-separated strings into arrays, filtering empty entries
+      const requiredSkills = args.requiredSkills
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean)
       const niceToHave = args.niceToHave
-        ? args.niceToHave.split(',').map((s: string) => s.trim())
+        ? args.niceToHave
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean)
         : undefined
 
       const params = CompareSkillsArgsSchema.parse({

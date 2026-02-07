@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { contentRepository } from '@/repositories/content.repository'
 import { contentTypeEnum, type ContentType } from '@/db/schema'
 
@@ -54,62 +55,57 @@ export function registerContentResources(server: McpServer) {
       }
     })
 
-    // Single content item by type and slug
-    server.resource(
-      `portfolio://content/${type}/{slug}`,
-      `portfolio://content/${type}/{slug}`,
-      async (uri) => {
-        // Extract slug from URI
-        const match = uri.href.match(new RegExp(`portfolio://content/${type}/(.+)`))
-        if (!match) {
-          return {
-            contents: [
-              {
-                uri: uri.href,
-                mimeType: 'application/json',
-                text: JSON.stringify({ error: 'Invalid URI format' }),
-              },
-            ],
-          }
+    // Single content item by type and slug - use ResourceTemplate
+    const template = new ResourceTemplate(`portfolio://content/${type}/{slug}`, {
+      list: async () => {
+        const items = await contentRepository.findPublished(type as ContentType)
+        return {
+          resources: items.map((item) => ({
+            uri: `portfolio://content/${type}/${item.slug}`,
+            name: `${type}/${item.slug}`,
+            mimeType: 'application/json',
+          })),
         }
+      },
+    })
 
-        const slug = match[1]
-        const item = await contentRepository.findBySlug(type as ContentType, slug)
+    server.resource(`content-${type}-item`, template, async (uri, variables) => {
+      const slug = variables.slug as string
+      const item = await contentRepository.findBySlug(type as ContentType, slug)
 
-        if (!item) {
-          return {
-            contents: [
-              {
-                uri: uri.href,
-                mimeType: 'application/json',
-                text: JSON.stringify({ error: `Content not found: ${type}/${slug}` }),
-              },
-            ],
-          }
-        }
-
-        const result = {
-          id: item.id,
-          slug: item.slug,
-          type: item.type,
-          data: item.data,
-          status: item.status,
-          version: item.version,
-          sortOrder: item.sortOrder,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-        }
-
+      if (!item) {
         return {
           contents: [
             {
               uri: uri.href,
               mimeType: 'application/json',
-              text: JSON.stringify(result, null, 2),
+              text: JSON.stringify({ error: `Content not found: ${type}/${slug}` }),
             },
           ],
         }
       }
-    )
+
+      const result = {
+        id: item.id,
+        slug: item.slug,
+        type: item.type,
+        data: item.data,
+        status: item.status,
+        version: item.version,
+        sortOrder: item.sortOrder,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      }
+
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: 'application/json',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      }
+    })
   }
 }
