@@ -15,6 +15,7 @@ import { contentRouter } from './routes/v1/content.routes'
 import { chatRouter } from './routes/v1/chat.routes'
 import { adminContentRouter } from './routes/v1/admin/content.routes'
 import { adminChatRouter } from './routes/v1/admin/chat.routes'
+import { mcpRouter } from './mcp/http'
 import { metricsMiddleware } from './observability'
 import { env } from './config/env'
 
@@ -57,6 +58,9 @@ export function createApp() {
   // Admin API routes
   app.use('/api/v1/admin/content', adminContentRouter)
   app.use('/api/v1/admin/chat', adminChatRouter)
+
+  // MCP over HTTP (admin-only)
+  app.use('/api/mcp', adminAuthMiddleware(), mcpRouter)
 
   // 404 handler
   app.use((_req, _res, next) => {
