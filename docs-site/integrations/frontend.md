@@ -34,10 +34,11 @@ const bundle = await response.json()
 // bundle contains:
 // {
 //   projects: [...],
-//   pages: [...],
+//   experiences: [...],
+//   education: [...],
 //   skills: [...],
-//   experience: [...],
-//   config: {...}
+//   about: {...} | null,
+//   contact: {...} | null
 // }
 ```
 
@@ -54,10 +55,10 @@ A type-safe client wrapper for the Portfolio API.
 
 export interface ContentItem {
   id: string
-  type: 'project' | 'page' | 'list' | 'config'
-  slug: string | null
+  type: 'project' | 'experience' | 'education' | 'skill' | 'about' | 'contact'
+  slug: string
   data: Record<string, unknown>
-  status: 'draft' | 'published'
+  status: 'draft' | 'published' | 'archived'
   version: number
   sortOrder: number
   createdAt: string
@@ -81,15 +82,6 @@ export interface Project extends ContentItem {
   }
 }
 
-export interface Page extends ContentItem {
-  type: 'page'
-  data: {
-    title: string
-    content: string
-    image?: string
-  }
-}
-
 export interface Skill {
   name: string
   category: 'language' | 'framework' | 'tool' | 'soft'
@@ -108,7 +100,7 @@ export interface Experience {
   skills: string[]
 }
 
-export interface SiteConfig {
+export interface ContactConfig {
   name: string
   title: string
   email: string
@@ -117,11 +109,12 @@ export interface SiteConfig {
 }
 
 export interface ContentBundle {
-  projects: Project[]
-  pages: Page[]
-  skills: Skill[]
-  experience: Experience[]
-  config: SiteConfig
+  projects: ContentItem[]
+  experiences: ContentItem[]
+  education: ContentItem[]
+  skills: ContentItem[]
+  about: ContentItem | null
+  contact: ContentItem | null
 }
 
 export interface ChatMessage {

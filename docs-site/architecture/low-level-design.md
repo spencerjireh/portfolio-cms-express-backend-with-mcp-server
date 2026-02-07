@@ -38,7 +38,7 @@ flowchart TB
         I3["Rate Limiter<br/>Token Bucket"]
         I4["Event Bus<br/>Typed Emitter"]
         I5["LLM Provider<br/>OpenAI-compatible"]
-        I6["Obfuscation Context<br/>PII Detection"]
+        I6["Guardrails<br/>PII Detection & Sanitization"]
         I7["Job Scheduler<br/>Background Tasks"]
         I8["Request Context<br/>AsyncLocalStorage"]
     end
@@ -360,7 +360,7 @@ sequenceDiagram
     participant Route
     participant RateLim as Rate Limiter
     participant ChatSvc as Chat Service
-    participant Obfusc as Obfuscator
+    participant Guards as Guardrails
     participant Circuit
     participant LLM
 
@@ -368,16 +368,16 @@ sequenceDiagram
     Route->>RateLim: consume(ip)
     RateLim-->>Route: {allowed: true}
     Route->>ChatSvc: processMsg()
-    ChatSvc->>Obfusc: obfuscate()
-    Obfusc-->>ChatSvc: obfuscated
+    ChatSvc->>Guards: validateInput()
+    Guards-->>ChatSvc: passed
     ChatSvc->>Circuit: execute()
     Circuit->>Circuit: isAvailable()
     Circuit->>LLM: chat()
     LLM-->>Circuit: response
     Circuit->>Circuit: recordSuccess()
     Circuit-->>ChatSvc: response
-    ChatSvc->>Obfusc: deobfuscate()
-    Obfusc-->>ChatSvc: deobfuscated
+    ChatSvc->>Guards: validateOutput()
+    Guards-->>ChatSvc: sanitized response
     ChatSvc->>ChatSvc: emit events (async)
     ChatSvc-->>Route: response
     Route-->>Client: 200 OK {sessionId, message}
@@ -686,49 +686,7 @@ export class ChatService {
 }
 ```
 
-### Example Error Responses
-
-**Validation Error (400):**
-```json
-{
-  "error": "Validation failed",
-  "code": "VALIDATION_ERROR",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000",
-  "fields": {
-    "slug": ["Slug must be lowercase alphanumeric with hyphens"],
-    "data.title": ["Required"]
-  }
-}
-```
-
-**Not Found (404):**
-```json
-{
-  "error": "Content not found: project/nonexistent",
-  "code": "NOT_FOUND",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-**Rate Limited (429):**
-```json
-{
-  "error": "Rate limit exceeded",
-  "code": "RATE_LIMITED",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000",
-  "retryAfter": 30
-}
-```
-*Headers: `Retry-After: 30`*
-
-**LLM Error (502):**
-```json
-{
-  "error": "AI service temporarily unavailable",
-  "code": "LLM_ERROR",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
+See [API Reference - Error Codes](/api/reference#error-codes) for error response examples and the full status code mapping.
 
 ## Testing Strategy
 
@@ -786,14 +744,17 @@ flowchart LR
 
 ### File Naming Conventions
 
+Files use dot-separated naming to indicate their layer:
+
 | Type | Pattern | Example |
 |------|---------|---------|
-| Routes | `{resource}.ts` | `content.ts`, `chat.ts` |
-| Services | `{name}.ts` | `obfuscation.ts` |
-| Repositories | `{entity}.repository.ts` | `content.repository.ts` |
-| Middleware | `{name}.ts` | `idempotency.ts` |
-| Types | `{name}.ts` | `content.ts` |
-| Tests | `{name}.test.ts` | `rate-limiter.test.ts` |
+| Routes | `{resource}.routes.ts` | `content.routes.ts`, `chat.routes.ts` |
+| Services | `{name}.service.ts` | `chat.service.ts`, `content.service.ts` |
+| Repositories | `{entity}.repository.ts` | `content.repository.ts`, `chat.repository.ts` |
+| Middleware | `{name}.middleware.ts` | `admin-auth.middleware.ts`, `idempotency.middleware.ts` |
+| Types | `{name}.types.ts` | `chat.types.ts`, `content.types.ts` |
+| Schemas | `{name}.schemas.ts` | `content.schemas.ts`, `chat.schemas.ts` |
+| Tests | `{name}.test.ts` | `rate-limiter.test.ts`, `chat.service.test.ts` |
 
 ### Code Style
 

@@ -45,9 +45,9 @@ erDiagram
 | id | type | slug | data | status |
 |----|------|------|------|--------|
 | uuid-1 | project | app-x | `{title:...}` | published |
-| uuid-2 | page | about | `{content:...}` | published |
-| uuid-3 | list | skills | `{items:[]}` | draft |
-| uuid-4 | config | site | `{name:...}` | published |
+| uuid-2 | about | about | `{title:..., content:...}` | published |
+| uuid-3 | skill | typescript | `{name:..., category:...}` | draft |
+| uuid-4 | contact | contact | `{name:..., email:...}` | published |
 
 ## Alternatives Considered
 

@@ -9,16 +9,16 @@ This document defines the content types, schemas, and validation rules for the P
 
 ## Overview
 
-All content is stored in a single `content` table with a flexible JSON `data` column. Content is categorized by `type` and optionally identified by `slug`.
+All content is stored in a single `content` table with a flexible JSON `data` column. Content is categorized by `type` and identified by `slug`.
 
 ```mermaid
 erDiagram
     content {
         uuid id PK
-        enum type "project|page|list|config"
+        enum type "project|experience|education|skill|about|contact"
         string slug UK
         json data
-        enum status "draft|published"
+        enum status "draft|published|archived"
         int version
         timestamp createdAt
         timestamp updatedAt
@@ -30,10 +30,12 @@ erDiagram
 
 | type | slug | data | status |
 |------|------|------|--------|
-| project | my-app | `{title, desc...}` | published |
-| page | about | `{title, body...}` | published |
-| list | skills | `{items: [...]}` | published |
-| config | site | `{name, email...}` | published |
+| project | portfolio-backend | `{title, description, tags...}` | published |
+| experience | tech-corp-senior | `{company, role, startDate...}` | published |
+| education | cs-degree | `{institution, degree...}` | published |
+| skill | typescript | `{name, category, proficiency...}` | published |
+| about | about | `{title, content...}` | published |
+| contact | contact | `{name, email, social...}` | published |
 
 ## Base Schema
 
@@ -42,10 +44,10 @@ All content items share these fields:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | UUID | Auto | Unique identifier |
-| `type` | enum | Yes | `project`, `page`, `list`, `config` |
-| `slug` | string | No | URL-friendly identifier (unique per type) |
+| `type` | enum | Yes | `project`, `experience`, `education`, `skill`, `about`, `contact` |
+| `slug` | string | Yes | URL-friendly identifier (unique per type) |
 | `data` | JSON | Yes | Type-specific content (see below) |
-| `status` | enum | Yes | `draft` or `published` |
+| `status` | enum | Yes | `draft`, `published`, or `archived` |
 | `version` | integer | Auto | Increments on each update |
 | `sortOrder` | integer | No | Display order (default: 0) |
 | `createdAt` | timestamp | Auto | Creation time |
@@ -57,7 +59,6 @@ All content items share these fields:
 - Lowercase alphanumeric with hyphens only: `^[a-z0-9-]+$`
 - Maximum 100 characters
 - Unique within a `type`
-- Optional for `config` type (singleton patterns)
 
 ## Content Types
 
@@ -109,38 +110,25 @@ interface ProjectData {
 }
 ```
 
-#### Validation
+### Experience
 
-```typescript
-const ProjectDataSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(500),
-  content: z.string().optional(),
-  tags: z.array(z.string().max(50)).max(20).default([]),
-  links: z.object({
-    github: z.string().url().optional(),
-    live: z.string().url().optional(),
-    demo: z.string().url().optional(),
-  }).optional(),
-  coverImage: z.string().url().optional(),
-  featured: z.boolean().default(false),
-})
-```
+Work experience and employment history.
 
-### Page
-
-Static content pages (About, Contact, etc.).
-
-**Type**: `page`
-**Slug**: Required (e.g., `about`, `contact`, `privacy`)
+**Type**: `experience`
+**Slug**: Required (e.g., `tech-corp-senior-engineer`)
 
 #### Schema
 
 ```typescript
-interface PageData {
-  title: string          // Required, 1-200 chars
-  content: string        // Required, Markdown
-  image?: string         // Optional, URL (hero image)
+interface ExperienceData {
+  company: string          // Required
+  role: string             // Required
+  description?: string     // Job description/achievements
+  startDate: string        // Required, format: YYYY-MM
+  endDate: string | null   // null = current position
+  location?: string        // City, Country or "Remote"
+  type?: 'full-time' | 'part-time' | 'contract' | 'freelance'
+  skills: string[]         // Technologies used
 }
 ```
 
@@ -148,34 +136,59 @@ interface PageData {
 
 ```json
 {
-  "type": "page",
-  "slug": "about",
+  "type": "experience",
+  "slug": "tech-corp-senior-engineer",
   "status": "published",
   "data": {
-    "title": "About Me",
-    "content": "# Hello!\n\nI'm a software engineer based in...",
-    "image": "https://images.myportfolio.com/headshot.jpg"
+    "company": "Tech Corp",
+    "role": "Senior Software Engineer",
+    "description": "Led development of microservices platform...",
+    "startDate": "2022-06",
+    "endDate": null,
+    "location": "San Francisco, CA",
+    "type": "full-time",
+    "skills": ["TypeScript", "Kubernetes", "PostgreSQL"]
   }
 }
 ```
 
-### List: Skills
+### Education
 
-A categorized list of technical and soft skills.
+Educational background.
 
-**Type**: `list`
-**Slug**: `skills` (singleton)
+**Type**: `education`
+**Slug**: Required (e.g., `cs-degree-state-university`)
 
 #### Schema
 
 ```typescript
-interface SkillsListData {
-  items: Array<{
-    name: string                                    // Required
-    category: 'language' | 'framework' | 'tool' | 'soft'  // Required
-    icon?: string                                   // Icon name or URL
-    proficiency?: 1 | 2 | 3 | 4 | 5                // Skill level
-  }>
+interface EducationData {
+  institution: string      // Required
+  degree: string           // Required (e.g., "B.S. Computer Science")
+  field?: string           // Field of study
+  startDate: string        // Format: YYYY-MM
+  endDate: string | null   // null = in progress
+  location?: string
+  gpa?: string             // Optional (e.g., "3.8/4.0")
+  highlights?: string[]    // Achievements, activities
+}
+```
+
+### Skill
+
+Individual skill entries, categorized by type.
+
+**Type**: `skill`
+**Slug**: Required (e.g., `typescript`, `react`)
+
+#### Schema
+
+```typescript
+interface SkillData {
+  name: string                                    // Required
+  category: 'language' | 'framework' | 'tool' | 'soft'  // Required
+  icon?: string                                   // Icon name or URL
+  proficiency?: 1 | 2 | 3 | 4 | 5                // Skill level
 }
 ```
 
@@ -183,29 +196,14 @@ interface SkillsListData {
 
 ```json
 {
-  "type": "list",
-  "slug": "skills",
+  "type": "skill",
+  "slug": "typescript",
   "status": "published",
   "data": {
-    "items": [
-      {
-        "name": "TypeScript",
-        "category": "language",
-        "icon": "typescript",
-        "proficiency": 5
-      },
-      {
-        "name": "React",
-        "category": "framework",
-        "icon": "react",
-        "proficiency": 4
-      },
-      {
-        "name": "Problem Solving",
-        "category": "soft",
-        "proficiency": 5
-      }
-    ]
+    "name": "TypeScript",
+    "category": "language",
+    "icon": "typescript",
+    "proficiency": 5
   }
 }
 ```
@@ -219,27 +217,20 @@ interface SkillsListData {
 | `tool` | Development tools | Git, Docker, VS Code |
 | `soft` | Soft skills | Communication, Leadership |
 
-### List: Experience
+### About
 
-Work experience and employment history.
+About page content.
 
-**Type**: `list`
-**Slug**: `experience` (singleton)
+**Type**: `about`
+**Slug**: Required (e.g., `about`)
 
 #### Schema
 
 ```typescript
-interface ExperienceListData {
-  items: Array<{
-    company: string          // Required
-    role: string             // Required
-    description?: string     // Job description/achievements
-    startDate: string        // Required, format: YYYY-MM
-    endDate: string | null   // null = current position
-    location?: string        // City, Country or "Remote"
-    type?: 'full-time' | 'part-time' | 'contract' | 'freelance'
-    skills: string[]         // Technologies used
-  }>
+interface AboutData {
+  title: string          // Required, 1-200 chars
+  content: string        // Required, Markdown
+  image?: string         // Optional, URL (hero image)
 }
 ```
 
@@ -247,61 +238,28 @@ interface ExperienceListData {
 
 ```json
 {
-  "type": "list",
-  "slug": "experience",
+  "type": "about",
+  "slug": "about",
   "status": "published",
   "data": {
-    "items": [
-      {
-        "company": "Tech Corp",
-        "role": "Senior Software Engineer",
-        "description": "Led development of microservices platform...",
-        "startDate": "2022-06",
-        "endDate": null,
-        "location": "San Francisco, CA",
-        "type": "full-time",
-        "skills": ["TypeScript", "Kubernetes", "PostgreSQL"]
-      }
-    ]
+    "title": "About Me",
+    "content": "# Hello!\n\nI'm a software engineer based in...",
+    "image": "https://images.myportfolio.com/headshot.jpg"
   }
 }
 ```
 
-### List: Education
+### Contact
 
-Educational background.
+Contact information and social links.
 
-**Type**: `list`
-**Slug**: `education` (singleton)
-
-#### Schema
-
-```typescript
-interface EducationListData {
-  items: Array<{
-    institution: string      // Required
-    degree: string           // Required (e.g., "B.S. Computer Science")
-    field?: string           // Field of study
-    startDate: string        // Format: YYYY-MM
-    endDate: string | null   // null = in progress
-    location?: string
-    gpa?: string             // Optional (e.g., "3.8/4.0")
-    highlights?: string[]    // Achievements, activities
-  }>
-}
-```
-
-### Config: Site
-
-Global site configuration.
-
-**Type**: `config`
-**Slug**: `site` (singleton)
+**Type**: `contact`
+**Slug**: Required (e.g., `contact`)
 
 #### Schema
 
 ```typescript
-interface SiteConfigData {
+interface ContactData {
   name: string              // Required, portfolio owner name
   title: string             // Required, job title/tagline
   email: string             // Required, contact email
@@ -315,8 +273,8 @@ interface SiteConfigData {
 
 ```json
 {
-  "type": "config",
-  "slug": "site",
+  "type": "contact",
+  "slug": "contact",
   "status": "published",
   "data": {
     "name": "Jane Developer",
@@ -327,8 +285,7 @@ interface SiteConfigData {
       "linkedin": "https://linkedin.com/in/janedev",
       "twitter": "https://twitter.com/janedev"
     },
-    "chatEnabled": true,
-    "chatSystemPrompt": "You are a helpful assistant representing Jane's portfolio..."
+    "chatEnabled": true
   }
 }
 ```
@@ -339,12 +296,12 @@ The `/api/v1/content/bundle` endpoint returns all published content organized fo
 
 ```typescript
 interface ContentBundle {
-  projects: Project[]       // Sorted by sortOrder, then createdAt
-  pages: Page[]             // Sorted by sortOrder
-  skills: Skill[]           // From list/skills
-  experience: Experience[]  // From list/experience, sorted by startDate desc
-  education: Education[]    // From list/education, sorted by startDate desc
-  config: SiteConfig        // From config/site
+  projects: ContentWithData[]      // All published projects
+  experiences: ContentWithData[]   // All published experience entries
+  education: ContentWithData[]     // All published education entries
+  skills: ContentWithData[]        // All published skill entries
+  about: ContentWithData | null    // About page content (singleton)
+  contact: ContentWithData | null  // Contact info (singleton)
 }
 ```
 
@@ -357,7 +314,7 @@ Every content update creates a history record:
 | `contentId` | Reference to content item |
 | `version` | Version number at time of snapshot |
 | `data` | Complete data JSON at that version |
-| `changeType` | `create`, `update`, `delete`, `restore` |
+| `changeType` | `created`, `updated`, `deleted`, `restored` |
 | `changedBy` | Identifier of who made the change |
 | `changeSummary` | Auto-generated description of changes |
 | `createdAt` | When this version was created |
@@ -380,11 +337,11 @@ Body: { "version": 3 }
 | Type | Slug | Required Fields | Optional Fields |
 |------|------|-----------------|-----------------|
 | `project` | Yes | title, description | content, tags, links, coverImage, featured |
-| `page` | Yes | title, content | image |
-| `list` (skills) | `skills` | items[].name, items[].category | items[].icon, items[].proficiency |
-| `list` (experience) | `experience` | items[].company, items[].role, items[].startDate | items[].description, items[].endDate, etc. |
-| `list` (education) | `education` | items[].institution, items[].degree, items[].startDate | items[].field, items[].endDate, etc. |
-| `config` (site) | `site` | name, title, email, social | chatEnabled, chatSystemPrompt |
+| `experience` | Yes | company, role, startDate | description, endDate, location, type, skills |
+| `education` | Yes | institution, degree, startDate | field, endDate, location, gpa, highlights |
+| `skill` | Yes | name, category | icon, proficiency |
+| `about` | Yes | title, content | image |
+| `contact` | Yes | name, title, email, social | chatEnabled, chatSystemPrompt |
 
 ## Best Practices
 
@@ -401,9 +358,3 @@ Body: { "version": 3 }
 - Images should be absolute URLs
 - Code blocks with language hints: ` ```typescript `
 - Keep headings hierarchical (don't skip levels)
-
-### Lists
-
-- Order items logically (skills by proficiency, experience by date)
-- Use consistent date formats (YYYY-MM)
-- Null `endDate` = current position

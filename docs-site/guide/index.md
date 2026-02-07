@@ -26,7 +26,7 @@ This project demonstrates proficiency in modern backend patterns while being pro
 
 ### Content Management
 
-- Store projects, pages, lists, and configuration
+- Store projects, experience, education, skills, about, and contact info
 - Content versioning with history tracking
 - Soft deletes with restore capability
 - Content bundles for efficient frontend loading
@@ -36,7 +36,7 @@ This project demonstrates proficiency in modern backend patterns while being pro
 - LLM-powered responses about portfolio content
 - Token bucket rate limiting per IP
 - Circuit breaker for LLM provider failures
-- PII obfuscation before sending to external providers
+- PII detection and sanitization in LLM responses
 
 ### MCP Integration
 

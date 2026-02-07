@@ -152,7 +152,7 @@ sequenceDiagram
     participant RateLimit as Rate Limiter
     participant ChatRoute as Chat Route
     participant ChatSvc as Chat Service
-    participant Obfuscate as Obfuscator
+    participant Guardrails as Guardrails
     participant Circuit as Circuit Breaker
     participant LLM
 
@@ -162,21 +162,25 @@ sequenceDiagram
     else Allowed
         RateLimit->>ChatRoute: Pass
         ChatRoute->>ChatSvc: processMessage()
-        ChatSvc->>Obfuscate: obfuscate(message)
-        Obfuscate-->>ChatSvc: obfuscated message
-        ChatSvc->>Circuit: execute()
-        alt Breaker open
-            Circuit-->>Client: 502 Service Unavailable
-        else Breaker closed
-            Circuit->>LLM: chat()
-            LLM-->>Circuit: response
-            Circuit-->>ChatSvc: response
+        ChatSvc->>Guardrails: validateInput(message)
+        alt Input blocked
+            Guardrails-->>ChatSvc: blocked
+            ChatSvc-->>Client: guardrail response
+        else Input passed
+            ChatSvc->>Circuit: execute()
+            alt Breaker open
+                Circuit-->>Client: 502 Service Unavailable
+            else Breaker closed
+                Circuit->>LLM: chat()
+                LLM-->>Circuit: response
+                Circuit-->>ChatSvc: response
+            end
+            ChatSvc->>Guardrails: validateOutput(response)
+            Guardrails-->>ChatSvc: sanitized response
+            ChatSvc->>ChatSvc: store messages
+            ChatSvc->>ChatSvc: emit events
+            ChatSvc-->>Client: 200 OK {sessionId, message}
         end
-        ChatSvc->>Obfuscate: deobfuscate(response)
-        Obfuscate-->>ChatSvc: clean response
-        ChatSvc->>ChatSvc: store messages (obfuscated)
-        ChatSvc->>ChatSvc: emit events
-        ChatSvc-->>Client: 200 OK {sessionId, message}
     end
 ```
 
@@ -257,7 +261,7 @@ sequenceDiagram
 | API Authentication | API key for admin routes |
 | Input Validation | Zod schemas, sanitization |
 | Rate Limiting | Token bucket per IP |
-| Data Privacy | PII obfuscation for LLM |
+| Data Privacy | PII detection and sanitization in LLM responses |
 | Transport | HTTPS only in production |
 | Headers | Helmet security headers |
 
@@ -283,7 +287,7 @@ flowchart TD
 | Data Type | Protection | Storage |
 |-----------|------------|---------|
 | Admin API Key | Environment variable | Never logged |
-| User Messages | Obfuscated | DB stores obfuscated |
+| User Messages | Stored as-is, output sanitized | PII redacted from LLM responses |
 | IP Addresses | Hashed (SHA-256) | Logs, rate limit keys |
 | Visitor IDs | Client-generated | Session tracking only |
 
@@ -312,6 +316,13 @@ flowchart TB
 | Liveness | `/api/health/live` | Is process alive? | 30s |
 | Readiness | `/api/health/ready` | Can accept traffic? | 10s |
 | Startup | `/api/health/startup` | Has initialization completed? | 5s |
+| Metrics | `/api/metrics` | Prometheus scrape (requires `X-Admin-Key`) | 15s |
+
+### Background Jobs
+
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| Session cleanup | Hourly | Expires inactive chat sessions and updates their status |
 
 ## Monitoring & Observability
 

@@ -32,12 +32,12 @@ paths:
           in: query
           schema:
             type: string
-            enum: [project, page, list, config]
+            enum: [project, experience, education, skill, about, contact]
         - name: status
           in: query
           schema:
             type: string
-            enum: [draft, published]
+            enum: [draft, published, archived]
             default: published
         - name: If-None-Match
           in: header
@@ -574,31 +574,6 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /admin/chat/stats:
-    get:
-      tags: [Admin Chat]
-      summary: Get chat statistics
-      security:
-        - adminKey: []
-      responses:
-        '200':
-          description: Chat stats
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  totalSessions:
-                    type: integer
-                  totalMessages:
-                    type: integer
-                  activeToday:
-                    type: integer
-                  tokensUsedToday:
-                    type: integer
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
 components:
   securitySchemes:
     adminKey:
@@ -622,7 +597,7 @@ components:
           type: string
         type:
           type: string
-          enum: [project, page, list, config]
+          enum: [project, experience, education, skill, about, contact]
         slug:
           type: string
           nullable: true
@@ -630,7 +605,7 @@ components:
           type: object
         status:
           type: string
-          enum: [draft, published]
+          enum: [draft, published, archived]
         version:
           type: integer
         sortOrder:
@@ -653,16 +628,24 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ContentRow'
-        pages:
+        experiences:
           type: array
           items:
             $ref: '#/components/schemas/ContentRow'
-        lists:
-          type: object
-          additionalProperties:
-            type: array
-        config:
-          type: object
+        education:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentRow'
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentRow'
+        about:
+          $ref: '#/components/schemas/ContentRow'
+          nullable: true
+        contact:
+          $ref: '#/components/schemas/ContentRow'
+          nullable: true
 
     ContentHistoryEntry:
       type: object
@@ -677,7 +660,7 @@ components:
           type: object
         changeType:
           type: string
-          enum: [create, update, delete, restore]
+          enum: [created, updated, deleted, restored]
         changedBy:
           type: string
           nullable: true
@@ -694,7 +677,7 @@ components:
       properties:
         type:
           type: string
-          enum: [project, page, list, config]
+          enum: [project, experience, education, skill, about, contact]
         slug:
           type: string
           pattern: ^[a-z0-9-]+$
@@ -703,7 +686,7 @@ components:
           type: object
         status:
           type: string
-          enum: [draft, published]
+          enum: [draft, published, archived]
           default: draft
         sortOrder:
           type: integer

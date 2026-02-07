@@ -261,60 +261,7 @@ curl -s https://api.yoursite.com/api/metrics | grep rate_limit
 
 ## Deployment & Rollback
 
-### Deployment Checklist
-
-1. [ ] All tests pass (`bun test`)
-2. [ ] Build succeeds (`bun run build`)
-3. [ ] Migrations are backwards compatible
-4. [ ] Environment variables are set
-5. [ ] Health check endpoint responds
-
-### Zero-Downtime Deployment
-
-```bash
-# 1. Build new image
-docker build -t portfolio-api:new .
-
-# 2. Start new container on different port
-docker run -d --name api-new -p 3001:3000 portfolio-api:new
-
-# 3. Wait for health check
-until curl -s http://localhost:3001/api/health | grep -q "ok"; do
-  sleep 1
-done
-
-# 4. Update reverse proxy to point to new container
-# (depends on your proxy setup)
-
-# 5. Stop old container
-docker stop api-old && docker rm api-old
-
-# 6. Rename new container
-docker rename api-new portfolio-api
-```
-
-### Rollback Procedure
-
-**Immediate rollback (< 5 min after deploy):**
-
-```bash
-# If using Docker
-docker stop portfolio-api
-docker run -d --name portfolio-api -p 3000:3000 portfolio-api:previous
-
-# If using Fly.io
-fly releases -a portfolio-api
-fly deploy --image registry.fly.io/portfolio-api:v123
-```
-
-**Database rollback (if migration broke something):**
-
-```bash
-# Generate rollback migration
-bun run db:generate -- --name rollback_xyz
-
-# Or restore from backup (see Database Operations)
-```
+For deployment procedures, zero-downtime deployment, rollback, and the deployment checklist, see the [Deployment Guide](/operations/deployment).
 
 ## Monitoring Alerts
 

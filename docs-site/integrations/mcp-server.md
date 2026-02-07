@@ -1,68 +1,37 @@
 ---
-title: MCP Server Integration
-description: Model Context Protocol server for AI assistants
+title: MCP Server & AI Tools
+description: Model Context Protocol server and chat tool integration
 ---
 
-# MCP Server Integration
+# MCP Server & AI Tools
 
 ## Overview
 
-The portfolio backend exposes a **Model Context Protocol (MCP)** server, enabling AI assistants like Claude Desktop to interact with portfolio content programmatically. This allows AI tools to:
+The portfolio backend provides AI tools through two interfaces:
 
-- Query portfolio projects and content
-- Understand the portfolio owner's skills and experience
-- Answer questions about the portfolio with accurate, up-to-date information
-- Create, update, and delete content (with proper authentication)
+1. **MCP Server** -- a standalone [Model Context Protocol](https://modelcontextprotocol.io/) server for AI assistants like Claude Desktop. Supports 6 tools (read + write).
+2. **Chat Service** -- an OpenAI function-calling integration that gives the chat endpoint access to the 3 read-only tools.
 
-## What is MCP?
-
-Model Context Protocol is an open standard for connecting AI assistants to external data sources and tools. Instead of copy-pasting content into chat, MCP allows AI to directly query structured data.
-
-```mermaid
-flowchart LR
-    Claude["Claude Desktop<br/>or other AI"] <-->|MCP| Server["MCP Server<br/>(stdio/SSE)"]
-    Server <--> DB[(Portfolio DB)]
-```
-
-## Architecture
-
-The MCP server runs as a separate process or can be embedded in the main Express application:
+Both share the same core tool implementations in `src/tools/core/`, ensuring consistent behavior.
 
 ```mermaid
 flowchart TB
-    subgraph MCPServer["MCP Server"]
-        subgraph Tools["Tools (Generic)"]
-            T1["list_content"]
-            T2["get_content"]
-            T3["search_content"]
-            T4["create_content"]
-            T5["update_content"]
-            T6["delete_content"]
-        end
-
-        subgraph Resources["Resources (Generic)"]
-            R1["portfolio://content"]
-            R2["portfolio://content/{type}"]
-            R3["portfolio://content/{type}/{slug}"]
-        end
-
-        subgraph Prompts["Prompts (Specialized)"]
-            P1["summarize_portfolio"]
-            P2["explain_project"]
-            P3["compare_skills"]
-        end
-
-        ContentRepo["Content Repository<br/>(shared with API)"]
+    subgraph SharedTools["Shared Tools Layer (src/tools/core/)"]
+        List["listContent()"]
+        Get["getContent()"]
+        Search["searchContent()"]
     end
 
-    Tools --> ContentRepo
-    Resources --> ContentRepo
-    ContentRepo --> DB[(Turso DB)]
+    MCP["MCP Server\n6 tools (read + write)\nMCP SDK response format"]
+    Chat["Chat Service\n3 tools (read only)\nOpenAI function calling"]
+
+    SharedTools --> MCP
+    SharedTools --> Chat
 ```
 
 ## Content Types
 
-All tools and resources operate on the unified content model with these types:
+All tools operate on the unified content model:
 
 | Type | Description |
 |------|-------------|
@@ -73,9 +42,13 @@ All tools and resources operate on the unified content model with these types:
 | `about` | About page content |
 | `contact` | Contact information and social links |
 
-## Tools
+See [Content Model Reference](/architecture/content-model) for detailed data schemas.
 
-Tools are functions that AI can call to perform actions or retrieve specific data. The MCP server provides 6 generic tools that work with any content type.
+---
+
+## Shared Read Tools
+
+These 3 tools are available in both the MCP server and the chat service.
 
 ### `list_content`
 
@@ -166,6 +139,12 @@ User: "What projects use TypeScript?"
 AI calls: search_content({ query: "typescript", type: "project" })
 ```
 
+---
+
+## MCP-Only Write Tools
+
+These tools are only available through the MCP server (not in chat).
+
 ### `create_content`
 
 Create new content with type-specific data validation.
@@ -178,34 +157,6 @@ interface CreateContentInput {
   status?: 'draft' | 'published' | 'archived'   // default: 'draft'
   sortOrder?: number                             // default: 0
 }
-
-interface CreateContentOutput {
-  success: boolean
-  content: {
-    id: string
-    slug: string
-    type: string
-    data: Record<string, unknown>
-    status: string
-    version: number
-    sortOrder: number
-    createdAt: string
-    updatedAt: string
-  }
-}
-```
-
-**Example invocation:**
-```
-User: "Create a new project called 'My New App'"
-AI calls: create_content({
-  type: "project",
-  data: {
-    title: "My New App",
-    description: "A new application",
-    tags: ["typescript", "react"]
-  }
-})
 ```
 
 ### `update_content`
@@ -215,35 +166,11 @@ Update existing content with version history tracking.
 ```typescript
 interface UpdateContentInput {
   id: string                                     // Content ID to update
-  slug?: string                                  // New slug
-  data?: Record<string, unknown>                 // Updated data (validated against type schema)
+  slug?: string
+  data?: Record<string, unknown>
   status?: 'draft' | 'published' | 'archived'
   sortOrder?: number
 }
-
-interface UpdateContentOutput {
-  success: boolean
-  content: {
-    id: string
-    slug: string
-    type: string
-    data: Record<string, unknown>
-    status: string
-    version: number
-    sortOrder: number
-    createdAt: string
-    updatedAt: string
-  }
-}
-```
-
-**Example invocation:**
-```
-User: "Update the project description"
-AI calls: update_content({
-  id: "content_abc123",
-  data: { ...existingData, description: "Updated description" }
-})
 ```
 
 ### `delete_content`
@@ -254,21 +181,11 @@ Soft delete content (can be restored later).
 interface DeleteContentInput {
   id: string                                     // Content ID to delete
 }
-
-interface DeleteContentOutput {
-  success: boolean
-  message: string
-  id: string
-}
 ```
 
-**Example invocation:**
-```
-User: "Delete the old project"
-AI calls: delete_content({ id: "content_abc123" })
-```
+---
 
-## Resources
+## MCP Resources
 
 Resources are URIs that AI can read to get content. Unlike tools, resources are read-only and follow a URI pattern.
 
@@ -286,18 +203,9 @@ Resources are URIs that AI can read to get content. Unlike tools, resources are 
 - `portfolio://content/about`
 - `portfolio://content/contact`
 
-**Example resource reads:**
-```
-AI reads: portfolio://content/project
-Returns: [{ slug: "portfolio-backend", ... }, { slug: "task-manager", ... }]
+## MCP Prompts
 
-AI reads: portfolio://content/project/portfolio-backend
-Returns: { id: "...", slug: "portfolio-backend", title: "Portfolio Backend", ... }
-```
-
-## Prompts
-
-Pre-defined prompt templates for common use cases. These are specialized by design to provide optimal responses for specific scenarios.
+Pre-defined prompt templates for common use cases.
 
 ### `summarize_portfolio`
 
@@ -330,6 +238,67 @@ interface CompareSkillsInput {
   niceToHave?: string[]
 }
 ```
+
+---
+
+## Chat Integration
+
+The chat service (`POST /api/v1/chat`) uses OpenAI function calling to give the AI assistant access to the same 3 read tools. The chat service also includes:
+
+- **Input guardrails** -- validates and sanitizes user messages before sending to the LLM
+- **Output guardrails** -- checks LLM responses for PII leakage before returning to the user
+- **PII sanitization** -- LLM responses are checked for PII and redacted before returning to the user
+
+### Tool Call Flow
+
+```mermaid
+flowchart TD
+    A[1. User sends message] --> B[2. Input guardrails check]
+    B -->|Blocked| F2[Return guardrail response]
+    B -->|Passed| C[3. Build conversation + system prompt]
+    C --> D[4. Call LLM with tools]
+    D --> E{LLM decides}
+
+    E -->|tool_call| G[5. Execute tool]
+    E -->|response| H[6. Output guardrails check]
+
+    G --> I[7. Add tool result to history]
+    I --> J{Iteration < 5?}
+    J -->|Yes| D
+    J -->|No| H
+
+    H -->|Passed| F[Return to user]
+    H -->|PII detected| F3[Return sanitized response]
+```
+
+### Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ChatSvc as Chat Service
+    participant LLM
+    participant Tools
+
+    Client->>ChatSvc: POST /chat "What projects use React?"
+    ChatSvc->>ChatSvc: Input guardrails
+    ChatSvc->>LLM: messages + tools
+    LLM-->>ChatSvc: tool_call: search_content {query: "react"}
+    ChatSvc->>Tools: search_content({query: "react"})
+    Tools-->>ChatSvc: [{slug: "portfolio", data: {tags: ["react"]}}]
+    ChatSvc->>LLM: messages + tool_result
+    LLM-->>ChatSvc: "I found 2 React projects..."
+    ChatSvc->>ChatSvc: Output guardrails
+    ChatSvc-->>Client: {message: "I found 2 React..."}
+```
+
+### Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MAX_TOOL_ITERATIONS` | 5 | Maximum tool call rounds per request |
+
+---
 
 ## Configuration
 
@@ -373,166 +342,47 @@ Headers:
 | `TURSO_DATABASE_URL` | Database connection | Yes |
 | `TURSO_AUTH_TOKEN` | Database auth | Yes |
 | `ADMIN_API_KEY` | For write operations | For admin tools |
+| `LLM_API_KEY` | LLM provider API key | For chat only |
+| `LLM_MODEL` | Model to use | No (default: `gpt-4o-mini`) |
+| `LLM_MAX_TOKENS` | Maximum response tokens | No (default: `500`) |
+| `LLM_TEMPERATURE` | Response temperature | No (default: `0.7`) |
 
-## Data Schemas
-
-Content data is validated against type-specific schemas:
-
-### Project Data
-```typescript
-interface ProjectData {
-  title: string
-  description: string
-  content?: string
-  tags: string[]
-  links?: {
-    github?: string
-    live?: string
-    demo?: string
-  }
-  coverImage?: string
-  featured: boolean
-}
-```
-
-### Skills List Data
-```typescript
-interface SkillsListData {
-  items: Array<{
-    name: string
-    category: 'language' | 'framework' | 'tool' | 'soft'
-    icon?: string
-    proficiency?: 1 | 2 | 3 | 4 | 5
-  }>
-}
-```
-
-### Experience List Data
-```typescript
-interface ExperienceListData {
-  items: Array<{
-    company: string
-    role: string
-    description?: string
-    startDate: string      // YYYY-MM format
-    endDate: string | null // null = current
-    location?: string
-    type?: 'full-time' | 'part-time' | 'contract' | 'freelance'
-    skills: string[]
-  }>
-}
-```
-
-### Education List Data
-```typescript
-interface EducationListData {
-  items: Array<{
-    institution: string
-    degree: string
-    field?: string
-    startDate: string      // YYYY-MM format
-    endDate: string | null
-    location?: string
-    gpa?: string
-    highlights?: string[]
-  }>
-}
-```
-
-### Page Data (About)
-```typescript
-interface PageData {
-  title: string
-  content: string
-  image?: string
-}
-```
-
-### Site Config Data (Contact)
-```typescript
-interface SiteConfigData {
-  name: string
-  title: string
-  email: string
-  social: Record<string, string>
-  chatEnabled: boolean
-  chatSystemPrompt?: string
-}
-```
-
-## Integration with REST API
+## Shared Architecture
 
 The MCP server shares the same data layer as the REST API:
 
 ```mermaid
 flowchart TB
     subgraph App["Application"]
-        REST["REST API<br/>(Express)"]
-        MCP["MCP Server<br/>(MCP SDK)"]
+        REST["REST API (Express)"]
+        MCP["MCP Server (MCP SDK)"]
+        Chat["Chat Service (OpenAI)"]
 
         REST --> Repo
         MCP --> Repo
+        Chat --> Repo
 
-        Repo["Content Repository<br/>findAll()<br/>findBySlug()<br/>findPublished()<br/>create()<br/>updateWithHistory()<br/>delete()"]
+        Repo["Content Repository"]
     end
 
     Repo --> DB[(Turso DB)]
 ```
 
-This ensures:
-- Consistent data access
-- Shared validation schemas
-- Version history tracking
-- Single source of truth
+This ensures consistent data access, shared validation schemas, and version history tracking.
 
-## Shared Tools with Chat
+**Schema conversion** for OpenAI function calling:
 
-The MCP server shares tool implementations with the chat service:
-
-```mermaid
-flowchart TB
-    subgraph SharedTools["Shared Tools Layer<br/>(src/tools/core/)"]
-        List["listContent()"]
-        Get["getContent()"]
-        Search["searchContent()"]
-    end
-
-    MCP["MCP Server<br/>- MCP SDK<br/>- server.tool()<br/>- MCP response format"]
-    Chat["Chat Service<br/>- OpenAI API<br/>- function calling<br/>- JSON response format"]
-
-    SharedTools --> MCP
-    SharedTools --> Chat
+```typescript
+// Zod schemas are converted to JSON Schema for OpenAI via zod-to-json-schema
+import { zodToJsonSchema } from 'zod-to-json-schema'
+const jsonSchema = zodToJsonSchema(ListContentInputSchema)
 ```
-
-**How it works:**
-
-- Core tool functions in `src/tools/core/` implement the business logic
-- MCP tools wrap core functions with MCP SDK response format
-- Chat uses OpenAI adapter that calls the same core functions
-- Zod schemas are converted to JSON Schema for OpenAI via `zod-to-json-schema`
-
-**Benefits:**
-
-| Benefit | Description |
-|---------|-------------|
-| **Consistency** | MCP queries and chat responses return identical data |
-| **Maintainability** | Fix bugs or add features in one place |
-| **Type safety** | Shared TypeScript types ensure correctness |
-| **Schema reuse** | Zod schemas used for validation and OpenAI format |
 
 See [ADR-008: Shared Tools Architecture](/decisions/008-shared-tools-architecture) for the full decision record.
 
 ## Error Handling
 
 MCP errors follow the protocol specification:
-
-```typescript
-interface MCPError {
-  code: number
-  message: string
-  data?: unknown
-}
-```
 
 | Code | Meaning |
 |------|---------|

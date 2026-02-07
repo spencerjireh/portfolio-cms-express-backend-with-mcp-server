@@ -11,18 +11,12 @@ The Portfolio Backend provides multiple integration points for different use cas
 
 | Integration | Description | Use Case |
 |-------------|-------------|----------|
-| [MCP Server](/integrations/mcp-server) | Model Context Protocol | AI assistants (Claude, etc.) |
+| [MCP Server & AI Tools](/integrations/mcp-server) | Model Context Protocol + Chat tools | AI assistants (Claude, etc.) and chat |
 | [Frontend](/integrations/frontend) | REST API client | Web applications |
 
-## MCP Server
+## MCP Server & AI Tools
 
-The Model Context Protocol (MCP) server enables AI assistants like Claude Desktop to interact with portfolio content directly.
-
-**Features:**
-- Query projects and content
-- Search by keyword
-- Create, update, delete content (with auth)
-- Pre-defined prompts for common tasks
+The MCP server enables AI assistants like Claude Desktop to interact with portfolio content directly. The same read tools power the chat endpoint via OpenAI function calling.
 
 **Quick Setup:**
 
@@ -38,55 +32,37 @@ The Model Context Protocol (MCP) server enables AI assistants like Claude Deskto
 }
 ```
 
-[Learn more about MCP integration](/integrations/mcp-server)
+[Learn more about MCP and AI tools integration](/integrations/mcp-server)
 
 ## Frontend Integration
 
 The REST API provides everything needed for frontend applications:
 
-**Features:**
 - Content bundle endpoint for fast initial load
 - Individual content endpoints with caching
 - AI chat integration
 - ETag support for efficient caching
 
-**Quick Example:**
-
-```typescript
-// Fetch all content at once
-const bundle = await fetch('/api/v1/content/bundle').then(r => r.json())
-
-// Send chat message
-const chat = await fetch('/api/v1/chat', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ message: 'Hello!' })
-}).then(r => r.json())
-```
-
 [Learn more about frontend integration](/integrations/frontend)
 
 ## Architecture
 
-Both integrations share the same data layer:
+All integrations share the same data layer:
 
 ```mermaid
 flowchart TB
     restApi["REST API<br/><i>Express</i>"]
     mcpServer["MCP Server<br/><i>MCP SDK</i>"]
+    chat["Chat Service<br/><i>OpenAI</i>"]
 
     subgraph dataLayer["Shared Data Layer"]
-        repo["Content Repository<br/><i>findAll(), findBySlug()<br/>create(), update()</i>"]
+        repo["Content Repository"]
     end
 
     turso[("Turso DB")]
 
     restApi --> repo
     mcpServer --> repo
+    chat --> repo
     repo --> turso
 ```
-
-This ensures:
-- Consistent data access
-- Shared validation
-- Single source of truth

@@ -5,14 +5,123 @@ description: Complete API endpoint documentation
 
 # API Reference
 
-This page provides the complete OpenAPI specification for the Portfolio Backend API.
+## Base URL
 
-## OpenAPI Specification
+```
+https://your-domain.com/api/v1
+```
 
-The full OpenAPI 3.0 specification is available at:
+## Conventions
 
-- **Development**: `http://localhost:3000/api/docs`
-- **Download**: [openapi.yaml](/openapi.yaml)
+### Authentication
+
+**Public endpoints** require no authentication:
+- `GET /content/*` - Read content
+- `POST /chat` - Send chat messages
+- `GET /health/*` - Health checks
+
+**Admin endpoints** require the `X-Admin-Key` header:
+
+```bash
+curl -H "X-Admin-Key: your-api-key" \
+  https://your-domain.com/api/v1/admin/content
+```
+
+**Metrics endpoint** also requires admin authentication:
+
+```bash
+curl -H "X-Admin-Key: your-api-key" \
+  https://your-domain.com/api/metrics
+```
+
+### Common Headers
+
+#### Request Headers
+
+| Header | Description | Required |
+|--------|-------------|----------|
+| `X-Admin-Key` | Admin API key | For admin endpoints and `/api/metrics` |
+| `Content-Type` | `application/json` | For POST/PUT requests |
+| `Idempotency-Key` | Unique request ID | Recommended for mutations |
+| `If-None-Match` | ETag for caching | Optional for GET requests |
+
+#### Response Headers
+
+| Header | Description |
+|--------|-------------|
+| `X-Request-Id` | Unique request identifier |
+| `ETag` | Entity tag for caching |
+| `Cache-Control` | Caching directives |
+| `X-RateLimit-Remaining` | Remaining rate limit tokens |
+| `Retry-After` | Seconds to wait (when rate limited) |
+
+### HTTP Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 201 | Created |
+| 304 | Not Modified (ETag match) |
+| 400 | Validation Error |
+| 401 | Unauthorized |
+| 404 | Not Found |
+| 409 | Conflict (e.g., duplicate slug) |
+| 429 | Rate Limited |
+| 500 | Internal Server Error |
+| 502 | Bad Gateway (LLM unavailable) |
+
+### Rate Limiting
+
+The API uses token bucket rate limiting:
+
+- **Chat endpoint**: 5 tokens, refills at 1 per 3 seconds
+- **Content endpoints**: 100 tokens, refills at 10 per second
+
+When rate limited:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 30
+X-RateLimit-Remaining: 0
+```
+
+### Pagination
+
+List endpoints support pagination:
+
+```
+GET /api/v1/admin/content?limit=10&offset=20
+```
+
+| Parameter | Default | Max |
+|-----------|---------|-----|
+| `limit` | 50 | 100 |
+| `offset` | 0 | - |
+
+### Filtering
+
+Content can be filtered by type and status:
+
+```
+GET /api/v1/content?type=project&status=published
+```
+
+### Caching
+
+Content responses include ETag headers for efficient caching:
+
+```bash
+# First request
+curl -i https://api.example.com/api/v1/content/bundle
+# Returns: ETag: "abc123"
+
+# Subsequent request
+curl -H "If-None-Match: abc123" \
+  https://api.example.com/api/v1/content/bundle
+# Returns: 304 Not Modified (if unchanged)
+```
+
+---
 
 ## Endpoints Summary
 
@@ -38,7 +147,7 @@ The full OpenAPI 3.0 specification is available at:
 | GET | `/api/health/live` | Liveness probe |
 | GET | `/api/health/ready` | Readiness probe |
 | GET | `/api/health/startup` | Startup probe |
-| GET | `/api/metrics` | Prometheus metrics |
+| GET | `/api/metrics` | Prometheus metrics (requires `X-Admin-Key`) |
 
 ### Admin Content
 
@@ -57,10 +166,11 @@ The full OpenAPI 3.0 specification is available at:
 |--------|----------|-------------|
 | GET | `/api/v1/admin/chat/sessions` | List chat sessions |
 | GET | `/api/v1/admin/chat/sessions/:id` | Get session with messages |
-| DELETE | `/api/v1/admin/chat/sessions/:id` | Delete session |
-| GET | `/api/v1/admin/chat/stats` | Get chat statistics |
+| DELETE | `/api/v1/admin/chat/sessions/:id` | End/delete session |
 
-## Detailed Endpoint Documentation
+---
+
+## Content Endpoints
 
 ### GET /content
 
@@ -70,8 +180,8 @@ List content items with optional filtering.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `type` | string | - | Filter by content type |
-| `status` | string | `published` | Filter by status |
+| `type` | string | - | Filter by content type (`project`, `experience`, `education`, `skill`, `about`, `contact`) |
+| `status` | string | `published` | Filter by status (`draft`, `published`, `archived`) |
 
 **Response**
 
@@ -102,7 +212,7 @@ Get a single content item by type and slug.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `type` | string | Content type (project, page, list, config) |
+| `type` | string | Content type (`project`, `experience`, `education`, `skill`, `about`, `contact`) |
 | `slug` | string | URL-friendly identifier |
 
 **Response**
@@ -129,38 +239,38 @@ Get a single content item by type and slug.
 
 ### GET /content/bundle
 
-Get all published content organized by type.
+Get all published content organized by type. See [Content Model - Content Bundle](/architecture/content-model#content-bundle) for the full type definition.
 
 **Response**
 
 ```json
 {
   "projects": [...],
-  "pages": [...],
-  "lists": {
-    "skills": {...},
-    "experience": {...},
-    "education": {...}
-  },
-  "config": {
-    "name": "Jane Developer",
-    "title": "Full Stack Engineer",
-    "email": "jane@example.com",
-    "social": {...},
-    "chatEnabled": true
-  }
+  "experiences": [...],
+  "education": [...],
+  "skills": [...],
+  "about": { "id": "...", "type": "about", "slug": "about", "data": {...}, ... },
+  "contact": { "id": "...", "type": "contact", "slug": "contact", "data": {...}, ... }
 }
 ```
 
+::: tip
+`about` and `contact` are singleton items (or `null` if not published). All other fields are arrays.
+:::
+
+---
+
+## Chat Endpoints
+
 ### POST /chat
 
-Send a chat message and receive an AI response.
+Send a chat message and receive an AI response. The chat service includes input/output guardrails for content safety and PII protection.
 
 **Request Body**
 
 ```json
 {
-  "sessionId": "session_abc123",  // Optional
+  "sessionId": "session_abc123",
   "message": "Tell me about your TypeScript experience"
 }
 ```
@@ -186,6 +296,12 @@ Send a chat message and receive an AI response.
 
 - `429 Too Many Requests` - Rate limited
 - `502 Bad Gateway` - LLM service unavailable
+
+---
+
+## Admin Endpoints
+
+All admin endpoints require the `X-Admin-Key` header.
 
 ### POST /admin/content
 
@@ -251,6 +367,13 @@ Update existing content.
 
 Returns the updated content item with incremented version.
 
+### DELETE /admin/content/:id
+
+Delete a content item.
+
+**Query Parameters**
+- `hard`: Set to `true` for permanent deletion (default: soft delete)
+
 ### GET /admin/content/:id/history
 
 Get version history for a content item.
@@ -264,18 +387,10 @@ Get version history for a content item.
     "contentId": "content_abc123",
     "version": 3,
     "data": {...},
-    "changeType": "update",
+    "changeType": "updated",
     "changedBy": "admin",
     "changeSummary": "Updated title, description",
     "createdAt": "2025-01-26T15:30:00Z"
-  },
-  {
-    "id": "history_xyz788",
-    "contentId": "content_abc123",
-    "version": 2,
-    "data": {...},
-    "changeType": "update",
-    "createdAt": "2025-01-25T12:00:00Z"
   }
 ]
 ```
@@ -296,9 +411,21 @@ Restore content to a previous version.
 
 Returns the content item with the restored data and a new version number.
 
+---
+
+## Health Endpoints
+
+### GET /health
+
+Basic health check. Returns `{ "status": "ok" }`.
+
+### GET /health/live
+
+Liveness probe for container orchestration.
+
 ### GET /health/ready
 
-Check if the service is ready to accept traffic.
+Readiness probe. Checks database connectivity.
 
 **Response**
 
@@ -322,6 +449,16 @@ When degraded:
 }
 ```
 
+### GET /health/startup
+
+Startup probe for container orchestration.
+
+### GET /metrics
+
+Prometheus metrics endpoint. **Requires `X-Admin-Key` header.**
+
+---
+
 ## Data Schemas
 
 ### ContentRow
@@ -329,10 +466,10 @@ When degraded:
 ```typescript
 interface ContentRow {
   id: string
-  type: 'project' | 'page' | 'list' | 'config'
-  slug: string | null
+  type: 'project' | 'experience' | 'education' | 'skill' | 'about' | 'contact'
+  slug: string
   data: Record<string, unknown>
-  status: 'draft' | 'published'
+  status: 'draft' | 'published' | 'archived'
   version: number
   sortOrder: number
   createdAt: string
@@ -340,6 +477,8 @@ interface ContentRow {
   deletedAt: string | null
 }
 ```
+
+See [Content Model Reference](/architecture/content-model) for detailed type-specific data schemas.
 
 ### ChatResponse
 
@@ -361,7 +500,7 @@ interface ChatResponse {
 ### Error
 
 ```typescript
-interface Error {
+interface ErrorResponse {
   error: string
   code: string
   requestId: string

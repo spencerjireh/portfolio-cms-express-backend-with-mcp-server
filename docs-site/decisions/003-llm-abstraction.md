@@ -21,7 +21,7 @@ Requirements:
 - Easy provider switching without code changes
 - Consistent error handling across providers
 - Token usage tracking for cost monitoring
-- PII obfuscation before sending to external providers
+- PII detection and sanitization in responses
 
 ## Decision
 
@@ -91,7 +91,7 @@ class LLMProviderChain {
 - **Provider flexibility**: Switch providers via configuration
 - **Fallback resilience**: Automatic failover if primary provider fails
 - **Consistent metrics**: Unified token tracking and latency measurement
-- **PII protection**: Centralized obfuscation before any provider call
+- **PII protection**: Output guardrails sanitize responses before returning to users
 - **Testing**: Easy to mock LLM calls in tests
 - **Cost control**: Token tracking enables budget alerts
 

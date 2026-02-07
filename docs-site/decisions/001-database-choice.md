@@ -19,7 +19,7 @@ The portfolio backend needs a database solution that:
 - Is cost-effective for a portfolio project
 
 The application has relatively simple data requirements:
-- Content storage (projects, pages, lists, config)
+- Content storage (projects, experience, education, skills, about, contact)
 - Chat session and message storage
 - Content versioning/history
 

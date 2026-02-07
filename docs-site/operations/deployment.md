@@ -22,26 +22,39 @@ This guide covers deploying the Portfolio Backend to production.
 
 ```dockerfile
 FROM oven/bun:1 AS builder
-
 WORKDIR /app
-COPY package.json bun.lockb ./
+
+COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY . .
 RUN bun run build
 
 FROM oven/bun:1-slim
-
 WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/bun.lock ./
+RUN bun install --production --frozen-lockfile
+
+USER bun
+
 EXPOSE 3000
 
-CMD ["bun", "run", "start"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD bun -e "fetch('http://localhost:3000/api/health/live').then(r=>process.exit(r.ok?0:1))"
+
+CMD ["bun", "dist/index.js"]
 ```
+
+Key features of the production Dockerfile:
+- **Multi-stage build**: Builder stage compiles, production stage only has runtime deps
+- **Non-root user**: Runs as `bun` user for security
+- **Built-in healthcheck**: Container self-monitors via the liveness endpoint
+- **Production-only deps**: `bun install --production` in the final stage
 
 ### Run Container
 

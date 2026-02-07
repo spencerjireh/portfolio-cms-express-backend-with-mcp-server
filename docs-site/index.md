@@ -19,7 +19,7 @@ features:
   - title: Content Management
     details: Flexible CMS with versioning, soft deletes, and content bundles for portfolio websites
   - title: AI Chat
-    details: LLM-powered chat with rate limiting, circuit breaker, and PII obfuscation
+    details: LLM-powered chat with rate limiting, circuit breaker, and PII protection
   - title: MCP Server
     details: Model Context Protocol integration for AI tools like Claude Desktop
   - title: Observability

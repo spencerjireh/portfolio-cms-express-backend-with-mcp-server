@@ -88,7 +88,7 @@ flowchart TB
 ### Chat System
 
 - Session-based conversations
-- PII obfuscation before LLM calls
+- Input/output guardrails with PII sanitization
 - Token bucket rate limiting
 - Circuit breaker for resilience
 
@@ -110,5 +110,5 @@ Key decisions are documented as ADRs:
 | [003](/decisions/003-llm-abstraction) | Provider abstraction layer |
 | [004](/decisions/004-repository-pattern) | Repository pattern for data access |
 | [005](/decisions/005-observability) | Events and OpenTelemetry tracing |
-| [006](/decisions/006-pii-obfuscation) | Token-based PII protection |
+| [006](/decisions/006-pii-obfuscation) | Guardrails-based PII protection |
 | [007](/decisions/007-content-model-flexibility) | Flexible content model |

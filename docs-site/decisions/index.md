@@ -24,7 +24,7 @@ An Architecture Decision Record (ADR) captures an important architectural decisi
 | [003](/decisions/003-llm-abstraction) | LLM Abstraction | Accepted | Provider abstraction layer for flexibility |
 | [004](/decisions/004-repository-pattern) | Repository Pattern | Accepted | Abstract data access for testability |
 | [005](/decisions/005-observability) | Observability | Accepted | Events and OpenTelemetry tracing |
-| [006](/decisions/006-pii-obfuscation) | PII Obfuscation | Accepted | Token-based obfuscation for LLM calls |
+| [006](/decisions/006-pii-obfuscation) | PII Protection | Accepted | Guardrails-based PII detection and sanitization |
 | [007](/decisions/007-content-model-flexibility) | Content Model | Accepted | Flexible JSON with app-level validation |
 
 ## ADR Template
@@ -81,4 +81,4 @@ What is the change that we're proposing and/or doing?
 
 ### AI Integration
 - [ADR-003: LLM Abstraction](/decisions/003-llm-abstraction) - Provider flexibility
-- [ADR-006: PII Obfuscation](/decisions/006-pii-obfuscation) - Privacy protection
+- [ADR-006: PII Protection](/decisions/006-pii-obfuscation) - Guardrails and sanitization

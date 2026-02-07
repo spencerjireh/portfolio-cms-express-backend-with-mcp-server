@@ -78,8 +78,7 @@ export default withMermaid(defineConfig({
           text: 'Integrations',
           items: [
             { text: 'Overview', link: '/integrations/' },
-            { text: 'MCP Server', link: '/integrations/mcp-server' },
-            { text: 'Chat Tools', link: '/integrations/chat-tools' },
+            { text: 'MCP Server & AI Tools', link: '/integrations/mcp-server' },
             { text: 'Frontend', link: '/integrations/frontend' }
           ]
         }
@@ -104,7 +103,7 @@ export default withMermaid(defineConfig({
             { text: 'ADR-003: LLM Abstraction', link: '/decisions/003-llm-abstraction' },
             { text: 'ADR-004: Repository Pattern', link: '/decisions/004-repository-pattern' },
             { text: 'ADR-005: Observability', link: '/decisions/005-observability' },
-            { text: 'ADR-006: PII Obfuscation', link: '/decisions/006-pii-obfuscation' },
+            { text: 'ADR-006: PII Protection', link: '/decisions/006-pii-obfuscation' },
             { text: 'ADR-007: Content Model', link: '/decisions/007-content-model-flexibility' },
             { text: 'ADR-008: Shared Tools', link: '/decisions/008-shared-tools-architecture' }
           ]
