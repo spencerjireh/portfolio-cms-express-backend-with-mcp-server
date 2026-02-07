@@ -14,10 +14,10 @@ export interface ContentItem {
   type: string
   data: Record<string, unknown>
   status: string
-  version?: number
-  sortOrder?: number
-  createdAt?: string
-  updatedAt?: string
+  version: number
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
 }
 
 export interface ListContentResult {
@@ -30,4 +30,18 @@ export interface GetContentResult {
 
 export interface SearchContentResult {
   items: ContentItem[]
+}
+
+export interface CreateContentResult {
+  item: ContentItem
+}
+
+export interface UpdateContentResult {
+  item: ContentItem
+}
+
+export interface DeleteContentResult {
+  id: string
+  type: string
+  slug: string
 }

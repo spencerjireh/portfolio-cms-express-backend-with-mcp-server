@@ -70,6 +70,10 @@ export async function searchContent(
     type: item.type,
     data: item.data as Record<string, unknown>,
     status: item.status,
+    version: item.version,
+    sortOrder: item.sortOrder,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
   }))
 
   return {

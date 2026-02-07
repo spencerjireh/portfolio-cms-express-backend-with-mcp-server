@@ -23,7 +23,31 @@ export const SearchContentInputSchema = z.object({
   limit: z.number().min(1).max(50).default(10).describe('Maximum items to return'),
 })
 
+// Write tool schemas
+export const CreateContentInputSchema = z.object({
+  type: ContentTypeSchema.describe('Content type to create'),
+  slug: z.string().optional().describe('URL-friendly slug (auto-generated if not provided)'),
+  data: z.record(z.unknown()).describe('Content data matching the type schema'),
+  status: ContentStatusSchema.default('draft').describe('Initial status'),
+  sortOrder: z.number().default(0).describe('Sort order for display'),
+})
+
+export const UpdateContentInputSchema = z.object({
+  id: z.string().describe('Content ID to update'),
+  slug: z.string().optional().describe('New slug'),
+  data: z.record(z.unknown()).optional().describe('Updated content data'),
+  status: ContentStatusSchema.optional().describe('New status'),
+  sortOrder: z.number().optional().describe('New sort order'),
+})
+
+export const DeleteContentInputSchema = z.object({
+  id: z.string().describe('Content ID to delete'),
+})
+
 // Type exports
 export type ListContentInput = z.infer<typeof ListContentInputSchema>
 export type GetContentInput = z.infer<typeof GetContentInputSchema>
 export type SearchContentInput = z.infer<typeof SearchContentInputSchema>
+export type CreateContentInput = z.infer<typeof CreateContentInputSchema>
+export type UpdateContentInput = z.infer<typeof UpdateContentInputSchema>
+export type DeleteContentInput = z.infer<typeof DeleteContentInputSchema>
